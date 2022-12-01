@@ -30,7 +30,7 @@ end architecture;
 
 entity 	InstructionMemory is
 	port(clk: in std_logic;
-		  addr1, addr2: in std_logic_vector(15 downto 0);
+		  addr_1, addr_2: in std_logic_vector(15 downto 0);
 		  data_out_1, data_out_2: out std_logic_vector(15 downto 0)
 	);
 end InstructionMemory;
