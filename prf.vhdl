@@ -18,7 +18,7 @@ architecture renaming of rename_registers is
     signal rat: rat_vector := (0,1,2,3,4,5);
    -- variable tags : std_logic_vector() 
 
-    signal next_value : integer := 6;
+    signal big : integer := 6;
 
 begin
 
