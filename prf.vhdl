@@ -16,9 +16,9 @@ architecture renaming of rename_registers is
     constant n : integer := 65536 --size of PRF
     type rat_vector is array(0 to 5) of integer;
     signal rat: rat_vector := (0,1,2,3,4,5);
-    variable tags : std_logic_vector() --
+   -- variable tags : std_logic_vector() 
 
-    signal next_value : integer := 6
+    signal next_value : integer := 6;
 
 begin
 
