@@ -4,6 +4,7 @@ USE ieee.numeric_std.ALL;
 package array_pkg is
     type addr_array is array(natural range <>) of std_logic_vector(16 downto 0);
     type prf_data_array is array(natural range <>) of std_logic_vector(16 downto 0);
+
 end package;
 
 
@@ -18,7 +19,7 @@ use work.array_pkg.all;
 entity rename_registers is
     generic(
         prf_size: integer := 128;
-        rs_size: integer := 128
+        rs_size: integer := 16
         -- there are 8 architectural registers
     ); 
     port(gr1,gr4,

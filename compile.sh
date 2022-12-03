@@ -6,7 +6,7 @@ ghdl -a prf.vhdl
 ghdl -e rename_registers
 
 ghdl -a rs_stage.vhdl
-ghdl -e rs_stage
+# ghdl -e rs_stage
 # ghdl -a DUT.vhdl
 # ghdl -e DUT
 
