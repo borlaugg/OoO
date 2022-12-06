@@ -1,12 +1,17 @@
 LIBRARY ieee;
 USE ieee.std_logic_1164.ALL;
 USE ieee.numeric_std.ALL;
-USE work.array_pkg.ALL;
 
-package array_pkg is
-    type addr_array is array(natural range <>) of std_logic_vector(16 downto 0);
-    type data_array is array(natural range <>) of std_logic_vector(16 downto 0);
+package rob_array_pkg is
+    type bit16_vector is array(natural range <>) of std_logic_vector(15 downto 0);
+    type exec_inps is array(0 to 1) of std_logic_vector(15 downto 0);
 end package;
+
+library ieee ;
+use ieee.std_logic_1164.all ;
+USE ieee.numeric_std.ALL;
+use work.rob_array_pkg.all;
+
 
 -- maintainig the context of the instructions
 -- r1 = r2 op r3
@@ -28,14 +33,14 @@ entity rob is
         rr1, rr4: in std_logic_vector(15 downto 0); -- rename regs assigned to the instr
 
         -- ports for writing back to the prf
-        write_en: out std_logic_vector(0 to rs_size*2-1);
-        write_reg: out addr_array(0 to rs_size*2-1);
-        write_data: out data_array(0 to rs_size*2-1);
+        write_en: out std_logic_vector(0 to rob_size*2-1);
+        write_reg: out bit16_vector(0 to rob_size*2-1);
+        write_data: out bit16_vector(0 to rob_size*2-1);
 
         -- inputs from the execution unit
         exec_inp_en: in std_logic_vector(0 to 1);
-        exec_inp_pc: in array(0 to 1) of std_logic_vector(15 downto 0);
-        exec_inp_vals: in array(0 to 1) of std_logic_vector(15 downto 0);
+        exec_inp_pc: in exec_inps;
+        exec_inp_vals: in exec_inps
 
     );
 end entity rob;
@@ -43,21 +48,20 @@ end entity rob;
 architecture juju of rob is
     -- type opcode_vector is array(0 to rob_size-1) of std_logic_vector(3 downto 0);
     -- type alu_op_vector is array(0 to rob_size-1) of std_logic_vector(1 downto 0);
-    type bit16_vector is array(0 to rob_size-1) of std_logic_vector(15 downto 0);
 
     -- defining the cols of the ROB
     signal entry_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
-    signal value: bit16_vector := (others=>'0');
+    signal value: bit16_vector(0 to rob_size - 1) := (others => (others=>'0'));
     signal value_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
-    signal dest_reg: bit16_vector := (others=>'0');
-    signal rename_reg: bit16_vector := (others=>'0');
-    signal PCs: bit16_vector := (others=>'0');
-    -- signal branch_tag: bit16_vector := (others=>'0');
+    signal dest_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
+    signal rename_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
+    signal PCs: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
+    -- signal branch_tag: bit16_vector(0 to rob_size-1) := (others=>'0');
 
     -- other state variables
     signal head: integer := 0;
     signal insert_loc: integer := 0;
-    signal is_full: std_logic := 0;
+    signal is_full: std_logic := '0';
 
 begin
     
@@ -65,26 +69,26 @@ begin
     process(clk)
         -- defining the cols of the ROB
         variable temp_entry_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
-        variable temp_value: bit16_vector := (others=>'0');
+        variable temp_value: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
         variable temp_value_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
-        variable temp_dest_reg: bit16_vector := (others=>'0');
-        variable temp_rename_reg: bit16_vector := (others=>'0');
-        signal temp_PCs: bit16_vector := (others=>'0');
-        -- signal branch_tag: bit16_vector := (others=>'0');
+        variable temp_dest_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
+        variable temp_rename_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
+        variable temp_PCs: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
+        -- signal branch_tag: bit16_vector(0 to rob_size-1) := (others=>'0');
 
         -- other state variables
         variable temp_head: integer := 0;
         variable temp_insert_loc: integer := 0;
-        variable temp_is_full: std_logic := 0;
+        variable temp_is_full: std_logic := '0';
 
-        -- ports for writing back to the prf
-        variable temp_write_en: out std_logic_vector(0 to rs_size*2-1);
-        variable temp_write_reg: out addr_array(0 to rs_size*2-1);
-        variable temp_write_data: out data_array(0 to rs_size*2-1); 
+        -- ports for writing back to the pr
+        variable temp_write_en: std_logic_vector(0 to rob_size*2-1) := (others=>'0');
+        variable temp_write_reg: bit16_vector(0 to rob_size*2-1) := (others => (others=>'0'));
+        variable temp_write_data: bit16_vector(0 to rob_size*2-1) := (others => (others=>'0'));
 
         variable index: integer;
         variable count: integer;
-        variable smolindex: integer;
+        -- variable smolindex: integer;
         variable smolcounter: integer;
 
     begin  
@@ -97,19 +101,19 @@ begin
         temp_head := head; 
         temp_insert_loc := insert_loc; 
         temp_is_full := is_full; 
-        temp_write_en := write_en; 
-        temp_write_reg := write_reg; 
-        temp_write_data := write_data; 
+        -- temp_write_en := write_en; 
+        -- temp_write_reg := write_reg; 
+        -- temp_write_data := write_data; 
 
         if falling_edge(clk) then
             -- filling in values gotten from the execution unit
             index := temp_head;
             count := 0;
             smolcounter := 0;
-            while count <= (insert_loc - temp_head) % rob_size loop
+            while count <= (insert_loc - temp_head) rem rob_size loop
                 for smolindex in 0 to 1 loop
-                    if (temp_entry_valid = '1' and temp_PCs(index) = exec_inp_pc(smolindex)) then
-                        temp_value(index) := exec_inp_data(smolindex);
+                    if (exec_inp_en(smolindex) = '1' and temp_entry_valid(index) = '1' and temp_PCs(index) = exec_inp_pc(smolindex)) then
+                        temp_value(index) := exec_inp_vals(smolindex);
                         temp_value_valid(index) := '1';
                         smolcounter := smolcounter + 1;
                     end if;
@@ -120,11 +124,11 @@ begin
                 end if;
 
                 count := count + 1;
-                index := (index + 1) % rob_size;
+                index := (index + 1) rem rob_size;
             end loop;
 
             -- adding new entries loop
-            if (insert_loc - temp_head) % rob_size /= rob_size - 1 then
+            if (insert_loc - temp_head) rem rob_size /= rob_size - 1 then
                 temp_entry_valid(temp_insert_loc) := '1';
                 temp_value(temp_insert_loc) := (others=>'0');
                 temp_value_valid(temp_insert_loc) := '0';
@@ -135,7 +139,7 @@ begin
 
                 temp_insert_loc := (temp_insert_loc + 1) mod rob_size;
 
-                if (insert_loc - temp_head) % rob_size /= rob_size - 1 then
+                if (insert_loc - temp_head) rem rob_size /= rob_size - 1 then
                     temp_entry_valid(temp_insert_loc) := '1';
                     temp_value(temp_insert_loc) := (others=>'0');
                     temp_value_valid(temp_insert_loc) := '0';
@@ -156,7 +160,7 @@ begin
             -- writeback loop
             index := temp_head;
             count := 0;
-            while count <= (insert_loc - temp_head) % rob_size loop
+            while count <= (insert_loc - temp_head) rem rob_size loop
                 if temp_entry_valid(index) = '1' and temp_value_valid(index) = '1' then
                     temp_write_en(count) := '1';
                     temp_write_reg(count) := temp_rename_reg(index);
@@ -167,14 +171,14 @@ begin
                     temp_dest_reg(index) := (others=>'0');
                     temp_rename_reg(index) := (others=>'0');
                     temp_PCs(index) := (others=>'0');
-                    temp_head := (temp_head + 1) % rob_size;
+                    temp_head := (temp_head + 1) rem rob_size;
                     temp_is_full := '0';
                 else 
                     exit;
                 end if;
 
                 count := count + 1;
-                index := (index + 1) % rob_size;
+                index := (index + 1) rem rob_size;
             end loop;
 
         end if;
