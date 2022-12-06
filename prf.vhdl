@@ -1,10 +1,10 @@
 library ieee ;
 use ieee.std_logic_1164.all ;
 USE ieee.numeric_std.ALL;
+
 package array_pkg is
     type addr_array is array(natural range <>) of std_logic_vector(16 downto 0);
     type prf_data_array is array(natural range <>) of std_logic_vector(16 downto 0);
-
 end package;
 
 
@@ -19,7 +19,8 @@ use work.array_pkg.all;
 entity rename_registers is
     generic(
         prf_size: integer := 128;
-        rs_size: integer := 16
+        rs_size: integer := 16;
+        rob_size: integer := 20
         -- there are 8 architectural registers
     ); 
     port(gr1,gr4,
@@ -29,6 +30,11 @@ entity rename_registers is
     -- gr1-6 are the registers from the two lines of code above(in that order)
     prf_addr_bus: in addr_array(0 to rs_size*2-1);
     prf_data_bus: out prf_data_array(0 to rs_size*2-1); -- (busy) (16 BIT DATA)
+
+    write_en: in std_logic_vector(0 to rob_size*2-1);
+    write_reg: in addr_array(0 to rob_size*2-1);
+    write_data: in prf_data_array(0 to rob_size*2-1);
+
     rr1,rr4,
     rr2,rr3,rr5,rr6:  out std_logic_vector(15 downto 0)
     -- for args: r2, r3, r5, r6 we return the addr of rename reg
@@ -134,6 +140,14 @@ begin
             if (temp_busy(rat_gr6) = '0') then
                 rr6 <= temp_value(rat_gr6);
             end if;
+
+            -- writing back to register file from the ROB
+            for i in 0 to rob_size*2-1 loop
+                if write_en(i) = '1' then
+                    temp_value(to_integer(unsigned(write_reg(i)))) := write_data(i);
+                    temp_busy(to_integer(unsigned(write_reg(i)))) := '0';
+                end if;
+            end loop;
 
             rat <= temp_rat;
             valid <= temp_valid;
