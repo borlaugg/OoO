@@ -3,6 +3,8 @@ echo "Starting Compilation"
 setopt aliases
 ghdl -a prf.vhdl
 ghdl -a rs_stage.vhdl
+ghdl -a branch_predictor.vhdl
+ghdl -e bpt
 #ghdl -e rs_stage
 #ghdl -e rs_stage
 ghdl -a exec_unit.vhdl
@@ -14,7 +16,7 @@ ghdl -a id_stage.vhdl
 # ghdl -a DUT.vhdl
 # ghdl -e DUT
 #ghdl -e rename_registers
-ghdl -a OoO_core.vhdl
+#ghdl -a OoO_core.vhdl
 #ghdl -e OoO_core
 ghdl -a DUT.vhdl
 ghdl -a testbench.vhdl
