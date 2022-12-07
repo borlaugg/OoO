@@ -9,6 +9,7 @@ entity exec_unit is
     alu1_dest , ls1_dest : in std_logic_vector(15 downto 0);
     alu1_oper1, alu1_oper2, ls1_oper: in std_logic_vector(15 downto 0);
     alu1_imm6 : in std_logic_vector(5 downto 0);
+
     ls1_imm6 : in std_logic_vector(5 downto 0);
     ls1_imm9 : in std_logic_vector(8 downto 0);
     br1_mode: in std_logic_vector(3 downto 0);
@@ -18,16 +19,23 @@ entity exec_unit is
     alu1_mode: in std_logic_vector(5 downto 0);
     ls1_mode: in std_logic_vector(3 downto 0);
     branch_mode: in std_logic_vector(2 downto 0);
-    alu_dest, alu_value : out std_logic_vector(15 downto 0);
+
     ls_dest,ls_value : out std_logic_vector(15 downto 0);
     br_value, br_pc, alu_pc, ls_pc : out std_logic_vector(15 downto 0);
-    alu_mode: out std_logic_vector(5 downto 0);
     br_mode: out std_logic_vector(3 downto 0);
     ls_mode: out std_logic_vector(3 downto 0);
     alu_c, alu_z: out std_logic;
     br_c, br_z: out std_logic;
     ls_c, ls_z: out std_logic;
-    br_eq : out std_logic);
+    br_eq : out std_logic;
+    --connections to prf
+    alu1_reg_data: out std_logic_vector(15 downto 0);
+    alu1_reg_addr: out std_logic_vector(15 downto 0);
+    alu1_reg_en: out std_logic
+    );
+
+    
+
 end entity exec_unit;
 
 architecture execution of exec_unit is
@@ -74,10 +82,12 @@ architecture execution of exec_unit is
     signal br_oper1, br_oper2 : std_logic_vector(15 downto 0);
     signal alu_oper1, alu_oper2 : std_logic_vector(15 downto 0);
     signal ls_oper1, ls_oper2 : std_logic_vector(15 downto 0);
-
+    signal alu_value: std_logic_vector(15 downto 0);
+    signal alu_mode: std_logic_vector(5 downto 0);
+    signal alu_reg_data, alu_reg_addr: std_logic_vector(15 downto 0);
 begin
 
-    alu1_use : ALU port map(alu_op => alu_sel, inp_a => alu_oper1, inp_b => alu_oper2, alu_out => alu_value, out_c => alu_c, out_z => alu_z);
+    alu1_use : ALU port map(alu_op => alu_sel, inp_a => alu_oper1, inp_b => alu_oper2, alu_out => alu_reg_data, out_c => alu_c, out_z => alu_z);
     br1_use : ALU port map(alu_op => br_sel, inp_a => br_oper1, inp_b => br_oper2, alu_out => br_value, out_c => br_c, out_z => br_z);
     ls1_use : ALU port map(alu_op => ls_sel, inp_a => ls_oper1, inp_b => ls_oper2, alu_out => ls_value, out_c => ls_c, out_z => ls_z);
 
@@ -97,19 +107,27 @@ begin
             alu_oper1 <= alu1_oper1;
             alu_oper2 <= alu1_oper2;
             alu_sel <= "000";
+            alu1_reg_en <= '1';
         elsif(alu1_mode="000111") then
             alu_oper1 <= alu1_oper1;
             alu_oper2 <= alu_lshift;
             alu_sel <= "000";
+            alu1_reg_en <= '1';
         elsif(alu1_mode(5 downto 2)="0010") then
             alu_oper1 <= alu1_oper1;
             alu_oper2 <= alu1_oper2;
             alu_sel <= "010";
+            alu1_reg_en <= '1';
         elsif(alu1_mode(5 downto 2)="0000") then
             alu_oper1 <= alu1_oper1;
             alu_oper2 <= alu_imm6;
             alu_sel <= "000";
+            alu1_reg_en <= '1';
+        else
+            alu1_reg_en <= '0';
         end if;
+        alu1_reg_addr <= alu_reg_addr;
+        alu1_reg_data <=alu_reg_data;
     end process;
 
     ls_process : process(ls1_oper,ls1_mode,ls1_imm6,ls1_imm9)
@@ -146,10 +164,10 @@ begin
         end if;
     end process;
 
+    alu_reg_addr <= alu1_dest;
     alu_mode <= alu1_mode;
     ls_mode <= ls1_mode;
     br_mode <= br1_mode;
-    alu_dest <= alu1_dest;
     ls_dest <= ls1_dest;
     br_pc <= br1_pc_in;
     alu_pc <= alu1_pc_in;
