@@ -36,7 +36,7 @@ use ieee.std_logic_1164.all;
 USE ieee.numeric_std.ALL;
 
 entity ID_STAGE is
-port(clk, stall: in std_logic;
+port(clk: in std_logic;
 	instr_in_1, instr_in_2, pc_in_1, pc_in_2: in std_logic_vector(15 downto 0);
 	r_1, r_2, r_3, r_4, r_5, r_6: out std_logic_vector(3 downto 0); -- 1111 don't care
 	opcode_1, opcode_2: out std_logic_vector(3 downto 0);
@@ -74,7 +74,7 @@ begin
 	variable pc : std_logic_vector(15 downto 0) := (others => '0');
 	variable op_1, op_2 : std_logic_vector(3 downto 0);
 	begin
-		if falling_edge(clk) and stall = '0' then
+		if falling_edge(clk) then
 			if (instr_in_1(15 downto 12) = "0000" or instr_in_1(15 downto 12) = "0111" or instr_in_1(15 downto 12) = "0101" or instr_in_1(15 downto 12) = "1000") then
 				imm6_1 <= instr_in_1(5 downto 0);
 				imm9_1 <= "111111111";

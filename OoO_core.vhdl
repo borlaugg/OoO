@@ -22,14 +22,27 @@ end entity;
 architecture superscalar of OoO_core is
 
     component IF_STAGE is
-        port(clk, stall,rst: in std_logic;
-            mem_data_in_1, mem_data_in_2, pc_in: in std_logic_vector(15 downto 0);
+        port(clk, stall,rst,unstall: in std_logic;
+            mem_data_in_1, mem_data_in_2, dest_pc,pc_in: in std_logic_vector(15 downto 0);
             instr_1, instr_2, mem_addr_1, mem_addr_2, pc_out, pc_out_1, pc_out_2: out std_logic_vector(15 downto 0)
             );
     end component;
 
+    component Increment port (pc_in: in std_logic_vector(15 downto 0);
+                              pc_out out std_logic_vector(15 downto 0));
+    end component;
+
+    component bpt is    
+    port (rst, clk, b_obs, unstall: in std_logic;
+          opcode: in  std_logic_vector(3 downto 0);
+          pc_in: in std_logic_vector(15 downto 0);
+          b_pred: out std_logic;
+          pc_out: out std_logic_vector(15 downto 0)
+        );
+    end component;
+
     component ID_STAGE is
-        port(clk, stall: in std_logic;
+        port(clk: in std_logic;
         instr_in_1, instr_in_2, pc_in_1, pc_in_2: in std_logic_vector(15 downto 0);
         r_1, r_2, r_3, r_4, r_5, r_6: out std_logic_vector(3 downto 0); -- 1111 don't care
         opcode_1, opcode_2: out std_logic_vector(3 downto 0);
@@ -73,7 +86,7 @@ architecture superscalar of OoO_core is
             -- there are 8 architectural registers
         ); 
         port(
-            clk, stall, reset: in std_logic;  --system ip
+            clk, reset: in std_logic;  --system ip
             pc_in_1, pc_in_2:  in std_logic_vector(15 downto 0); --id stage
             opcode_1, opcode_2: in std_logic_vector(3 downto 0);  --id stage
             alu_op_1, alu_op_2: in std_logic_vector(1 downto 0);  -- id stage
@@ -107,6 +120,7 @@ architecture superscalar of OoO_core is
             alu1_dest , ls1_dest : in std_logic_vector(15 downto 0);
             alu1_oper1, alu1_oper2, ls1_oper: in std_logic_vector(15 downto 0);
             alu1_imm6 : in std_logic_vector(5 downto 0);
+
             ls1_imm6 : in std_logic_vector(5 downto 0);
             ls1_imm9 : in std_logic_vector(8 downto 0);
             br1_mode: in std_logic_vector(3 downto 0);
@@ -116,16 +130,22 @@ architecture superscalar of OoO_core is
             alu1_mode: in std_logic_vector(5 downto 0);
             ls1_mode: in std_logic_vector(3 downto 0);
             branch_mode: in std_logic_vector(2 downto 0);
-            alu_dest, alu_value : out std_logic_vector(15 downto 0);
+            stall_pc1, stall_pc2 : in std_logic_vector(15 downto 0);
+
             ls_dest,ls_value : out std_logic_vector(15 downto 0);
             br_value, br_pc, alu_pc, ls_pc : out std_logic_vector(15 downto 0);
-            alu_mode: out std_logic_vector(5 downto 0);
             br_mode: out std_logic_vector(3 downto 0);
             ls_mode: out std_logic_vector(3 downto 0);
             alu_c, alu_z: out std_logic;
             br_c, br_z: out std_logic;
             ls_c, ls_z: out std_logic;
-            br_eq : out std_logic);
+            br_eq : out std_logic;
+            stall_out : out std_logic;
+            --connections to prf
+            alu1_reg_data: out std_logic_vector(15 downto 0);
+            alu1_reg_addr: out std_logic_vector(15 downto 0);
+            alu1_reg_en: out std_logic
+        );
     end component;
 
     component rob is
@@ -162,28 +182,61 @@ architecture superscalar of OoO_core is
         );
     end component;
 
-    signal pc : std_logic_vector(15 downto 0) := (others=>'0');
-    signal stall : std_logic := '0';
-
+    signal id_pc1, id_pc2, br_value,pc_i, pc_o, pc1, pc2, pco1, pco2, do1, do2, a1, a2 : std_logic_vector(15 downto 0) := (others=>'0');
+    signal stall1, stall2, stall, unstall, b_obs1, b_obs2 : std_logic := '0';
+    signal id_r1, id_r2, id_r3, id_r4, id_r5, id_r6 : std_logic_vector(3 downto 0) := (others=>'0');
+    signal id_opcode1, id_opcode2 : std_logic_vector(3 downto 0) := (others=>'0');
+    signal id_imm6_1, id_imm_6_2 : std_logic_vector(5 downto 0) := (others=>'0');
+    signal id_imm9_1, id_imm_9_2 : std_logic_vector(8 downto 0) := (others=>'0');
+    signal id_alu_op1, id_alu_op2 : std_logic_vector(1 downto 0) := (others=>'0');
 begin
 
-ins_mem : InstructionMemory port map(clk => clk, addr_1 => ,addr_2 =>, data_out_1 => ,data_out_2 => );
+ins_mem : InstructionMemory port map(clk => clk, addr_1 => a1,addr_2 => a2, data_out_1 => do1,data_out_2 => do2);
 
-if_block: IF_STAGE port map(clk => clk, stall => stall, rst => rst,
-            mem_data_in_1 => , mem_data_in_2 =>, pc_in =>,
-            instr_1 =>, instr_2 =>, mem_addr_1 =>, mem_addr_2 =>, pc_out =>, pc_out_1 =>, pc_out_2 =>);
+if_block: IF_STAGE port map(clk => clk, stall => stall, rst => rst, unstall => unstall,
+            mem_data_in_1 => do1, mem_data_in_2 => do2, pc_in => pc_i, dest_pc =>br_value,
+            instr_1 =>, instr_2 =>, mem_addr_1 =>, a1 mem_addr_2 => a2, pc_out => pc_o, pc_out_1 => pc1, pc_out_2 => pc2);
 
-id_block: ID_STAGE port map(clk => clk, stall=> stall,
-        instr_in_1 =>, instr_in_2 =>,  pc_in_1 =>, pc_in_2 =>,
-        r_1 =>, r_2 =>, r_3 =>, r_4 =>, r_5 =>, r_6 =>,
-        opcode_1 =>, opcode_2 =>,
-        alu_op_1 =>, alu_op_2 =>,
-        imm6_1 =>, imm6_2 =>,
-        imm9_1 =>, imm9_2 => ,
-        pc_out_2 =>, pc_out_1 =>);
+incr_block: Increment port map(pc_in => pc_o, pc_out => pc_i);
+
+bp_block1: bpt port map (rst => rst, clk => clk, b_obs => b_obs1, opcode => pc_out_1(15 downto 12), b_pred => stall1, unstall => unstall
+                        pc_in => pc1, pc_out =>pco1);
+
+bp_block2: bpt port map (rst => rst, clk => clk, b_obs =>b_obs2, opcode => pc_out_2(15 downto 12), b_pred => stall2,  unstall => unstall
+                        pc_in => pc2, pc_out =>pco2);
+
+stall <= stall1 or stall2;
+
+id_block: ID_STAGE port map(clk => clk, 
+        instr_in_1 => do1, instr_in_2 =>do2,  pc_in_1 => pc_out_1, pc_in_2 =>pc_out_2,
+        r_1 => id_r1, r_2 => id_r2, r_3 => id_r3, r_4 => id_r4, r_5 => id_r5, r_6 => id_r6,
+        opcode_1 => id_opcode1, opcode_2 => id_opcode2,
+        alu_op_1 =>id_alu_op1, alu_op_2 =>id_alu_op2,
+        imm6_1 => id_imm_6_1, imm6_2 => id_imm_6_2,
+        imm9_1 => id_imm_9_1, imm9_2 => id_imm_9_2,
+        pc_out_2 => id_pc2, pc_out_1 => id_pc1);
         
+prf_block : rename_registers port map(gr1 => id_r1,gr4 => id_r4,
+        gr2 => id_r2,gr3 => id_r3,gr5 => id_r5,gr6 => id_r6,
+        reset => rst, clk => clk, stall => stall,
+
+        -- gr1-6 are the registers from the two lines of code above(in that order)
+        prf_addr_bus => ,
+        prf_data_bus => , -- (busy) (16 BIT DATA)
+
+        write_en => ,
+        write_reg => ,
+        write_data => ,
+
+        rr1 => ,rr4 => ,
+        rr2 => ,rr3 => ,rr5 => ,rr6 =>,
+        v2 => ,v3 => ,v5 => ,v6 =>
+        -- for args: r2, r3, r5, r6 we return the addr of rename reg
+        -- for dests: r1, r4 we return the new rename reg assigned to them
+);
+
 rs_block: rs_stage port map (
-        clk=>, stall=>, reset=>,
+        clk=> clk, reset=> rst,
         pc_in_1=>, pc_in_2=>,
         opcode_1=>, opcode_2=>,
         alu_op_1=>, alu_op_2=>,
@@ -210,25 +263,6 @@ rs_block: rs_stage port map (
         branch_mode =>
 );
 
-prf_block : rename_registers port map(gr1 => ,gr4 => ,
-        gr2 => ,gr3 => ,gr5 => ,gr6 => ,
-        reset => , clk => , stall => ,
-
-        -- gr1-6 are the registers from the two lines of code above(in that order)
-        prf_addr_bus => ,
-        prf_data_bus => , -- (busy) (16 BIT DATA)
-
-        write_en => ,
-        write_reg => ,
-        write_data => ,
-
-        rr1 => ,rr4 => ,
-        rr2 => ,rr3 => ,rr5 => ,rr6 =>,
-        v2 => ,v3 => ,v5 => ,v6 =>
-        -- for args: r2, r3, r5, r6 we return the addr of rename reg
-        -- for dests: r1, r4 we return the new rename reg assigned to them
-);
-
 exec_block : exec_unit port map(
     clk =>, stall => , reset => , 
     alu1_dest =>, ls1_dest =>,
@@ -243,16 +277,18 @@ exec_block : exec_unit port map(
     alu1_mode => ,
     ls1_mode => ,
     branch_mode =>,
+    stall_pc1 => pco1, stall_pc2 => pco2,
     alu_dest =>, alu_value =>,
     ls_dest =>,ls_value =>,
-    br_value =>, br_pc =>, alu_pc =>, ls_pc =>,
+    br_value => br_value, br_pc =>, alu_pc =>, ls_pc =>,
     alu_mode =>,
     br_mode =>,
     ls_mode =>,
+    stall_out => unstall,
     alu_c =>, alu_z =>,
     br_c =>, br_z =>,
     ls_c =>, ls_z =>,
-    br_eq =>);
+    br_eq1 =>b_obs1, br_eq2=>b_obs2);
         
 ROB_block:  rob port map(
             clk =>, stall =>, reset  =>,

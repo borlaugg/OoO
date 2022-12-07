@@ -11,7 +11,7 @@ entity rs_stage is
         -- there are 8 architectural registers
     ); 
     port(
-        clk, stall, reset: in std_logic;  --system ip
+        clk, reset: in std_logic;  --system ip
         pc_in_1, pc_in_2:  in std_logic_vector(15 downto 0); --id stage
         opcode_1, opcode_2: in std_logic_vector(3 downto 0);  --id stage
         alu_op_1, alu_op_2: in std_logic_vector(1 downto 0);  -- id stage

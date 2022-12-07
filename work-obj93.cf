@@ -1,25 +1,25 @@
 v 4
-file . "testbench.vhdl" "40f94aeeebe8df0d4e4e9b15061193a8f03eb08c" "20221207164259.916":
-  entity testbench at 1( 0) + 0 on 695;
-  architecture behave of testbench at 9( 110) + 0 on 696;
-file . "id_stage.vhdl" "45159693fb34748174025fc7803a7f401e6a6e22" "20221207164259.907":
-  entity reg_validator at 5( 97) + 0 on 691;
-  architecture behav of reg_validator at 17( 383) + 0 on 692;
-  entity id_stage at 34( 960) + 0 on 693;
-  architecture behav of id_stage at 51( 1535) + 0 on 694;
-file . "if_stage.vhdl" "77e7b2af63ea8246a951e9d1d2c8d4268acff8d7" "20221207164259.900":
-  entity if_stage at 1( 0) + 0 on 689;
-  architecture behav of if_stage at 12( 326) + 0 on 690;
-file . "exec_unit.vhdl" "c0c56e7a1cb3321e6894f1754f0ce129b216ba9c" "20221207164259.893":
-  entity exec_unit at 1( 0) + 0 on 687;
-  architecture execution of exec_unit at 41( 1415) + 0 on 688;
-file . "rs_stage.vhdl" "4249f1a185df7e02ed1da55f318b8299f32ebcc9" "20221207112046.712":
-  entity rs_stage at 4( 38) + 0 on 480;
-  architecture bham of rs_stage at 42( 1851) + 0 on 481;
-file . "prf.vhdl" "49d5d29c1ac251c87032a456f87790f0ecc5a3f1" "20221207112046.703":
-  package array_pkg at 1( 0) + 0 on 477;
-  entity rename_registers at 11( 274) + 0 on 478;
-  architecture renaming of rename_registers at 46( 1333) + 0 on 479;
+file . "testbench.vhdl" "40f94aeeebe8df0d4e4e9b15061193a8f03eb08c" "20221207184734.255":
+  entity testbench at 1( 0) + 0 on 889;
+  architecture behave of testbench at 9( 110) + 0 on 890;
+file . "id_stage.vhdl" "70802ecfdcc834c552070a62b051eae5243f2451" "20221207184734.129":
+  entity reg_validator at 5( 97) + 0 on 885;
+  architecture behav of reg_validator at 17( 383) + 0 on 886;
+  entity id_stage at 34( 960) + 0 on 887;
+  architecture behav of id_stage at 51( 1528) + 0 on 888;
+file . "if_stage.vhdl" "5c99c6fa8fb36a428832cf20d71fe52fb1af3076" "20221207184734.123":
+  entity if_stage at 1( 0) + 0 on 883;
+  architecture behav of if_stage at 12( 343) + 0 on 884;
+file . "exec_unit.vhdl" "4c96aa0e22827e510a056ce0e3e2707e5a49307b" "20221207184734.118":
+  entity exec_unit at 1( 0) + 0 on 881;
+  architecture execution of exec_unit at 43( 1516) + 0 on 882;
+file . "rs_stage.vhdl" "2668d3471f315972fae47b66f820f31e61809cd0" "20221207184733.967":
+  entity rs_stage at 4( 38) + 0 on 875;
+  architecture bham of rs_stage at 42( 1844) + 0 on 876;
+file . "prf.vhdl" "4b9c17297df29af69e1923a4ad41d1ac7faa0b23" "20221207184733.960":
+  package array_pkg at 1( 0) + 0 on 872;
+  entity rename_registers at 11( 274) + 0 on 873;
+  architecture renaming of rename_registers at 51( 1502) + 0 on 874;
 file . "rob.vhdl" "5e8ec3a4292928820abcc1997e45a21b2f0c8c0a" "20221207101125.862":
   entity rob at 10( 262) + 0 on 194;
   architecture juju of rob at 48( 1455) + 0 on 195;
@@ -27,6 +27,9 @@ file . "OoO_core.vhdl" "2fc7f570770e98063bf0df52f07c3d109c4d50b8" "2022120711204
   package rob_array_pkg at 1( 0) + 0 on 490;
   entity ooo_core at 11( 286) + 0 on 491;
   architecture superscalar of ooo_core at 22( 483) + 0 on 492;
-file . "branch_predictor.vhdl" "cfdf2391ee4bef23c82e6d9d0e43d8a98b0d3f46" "20221207164259.873":
-  entity bpt at 1( 0) + 0 on 685;
-  architecture beh of bpt at 11( 211) + 0 on 686;
+file . "branch_predictor.vhdl" "b6bf58ab8e1604c7606358ee203e453b6b9fccfc" "20221207184733.972":
+  entity bpt at 1( 0) + 0 on 877;
+  architecture beh of bpt at 13( 324) + 0 on 878;
+file . "Incrementor.vhdl" "944ec50d3814a364bab8f12baa72324232ddd809" "20221207184733.989":
+  entity increment at 1( 0) + 0 on 879;
+  architecture beh of increment at 10( 208) + 0 on 880;

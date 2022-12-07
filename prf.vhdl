@@ -162,7 +162,7 @@ begin
                 end if;
             end loop;
 
-            if alu1_reg_en then
+            if (alu1_reg_en = '1') then
                 temp_value(to_integer(unsigned(alu1_reg_addr))) := alu1_reg_data;
                 temp_busy(to_integer(unsigned(alu1_reg_addr))) := '0';
             end if;
