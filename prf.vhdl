@@ -36,7 +36,8 @@ entity rename_registers is
     write_data: in prf_data_array(0 to rob_size*2-1);
 
     rr1,rr4,
-    rr2,rr3,rr5,rr6:  out std_logic_vector(15 downto 0)
+    rr2,rr3,rr5,rr6:  out std_logic_vector(15 downto 0);
+    v2,v3,v5,v6: out std_logic
     -- for args: r2, r3, r5, r6 we return the addr of rename reg
     -- for dests: r1, r4 we return the new rename reg assigned to them
     );
@@ -108,13 +109,17 @@ begin
             end loop;
 
             rat_gr5 := temp_rat(to_integer(unsigned(gr5)));
+            v5 <= '0';
             rat_gr6 := temp_rat(to_integer(unsigned(gr6)));
+            v6 <= '0';
 
             temp_counter(rat_gr5) := temp_counter(rat_gr5) + 1;
             temp_counter(rat_gr6) := temp_counter(rat_gr6) + 1;
             
             rr5 <= std_logic_vector(to_unsigned(rat_gr5, 16));
+            v5<= '0';
             rr6 <= std_logic_vector(to_unsigned(rat_gr6, 16));
+            v6 <= '0';
             
             for i in 0 to prf_size-1 loop
                 if temp_valid(i) = '0' then
@@ -127,24 +132,27 @@ begin
                 end if;
             end loop;
 
-
             if (temp_busy(rat_gr2) = '0') then
                 rr2 <= temp_value(rat_gr2);
+                v2 <= '1';
             end if;
             if (temp_busy(rat_gr3) = '0') then
                 rr3 <= temp_value(rat_gr3);
+                v3 <= '1';
             end if;
             if (temp_busy(rat_gr5) = '0') then
                 rr5 <= temp_value(rat_gr5);
+                v5 <= '1';
             end if;
             if (temp_busy(rat_gr6) = '0') then
                 rr6 <= temp_value(rat_gr6);
+                v6 <= '1';
             end if;
 
             -- writing back to register file from the ROB
             for i in 0 to rob_size*2-1 loop
                 if write_en(i) = '1' then
-                    temp_value(to_integer(unsigned(write_reg(i)))) := write_data(i);
+                    temp_value(to_integer(unsigned(write_reg(i)))) := write_data(i)(15 downto 0);
                     temp_busy(to_integer(unsigned(write_reg(i)))) := '0';
                 end if;
             end loop;

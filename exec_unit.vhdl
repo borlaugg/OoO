@@ -1,7 +1,7 @@
 library ieee ;
 use ieee.std_logic_1164.all ;
 USE ieee.numeric_std.ALL;
-use work.array_pkg.all;
+--use work.array_pkg.all;
 
 entity exec_unit is
     port(
@@ -12,7 +12,7 @@ entity exec_unit is
     ls1_imm6 : in std_logic_vector(5 downto 0);
     ls1_imm9 : in std_logic_vector(8 downto 0);
     br1_mode: in std_logic_vector(3 downto 0);
-    br1_oper1, br1_oper2, br1_pc  : in std_logic_vector(15 downto 0); --need 2 operands to check for BEQ
+    br1_oper1, br1_oper2, br1_pc_in, ls1_pc_in, alu1_pc_in  : in std_logic_vector(15 downto 0); --need 2 operands to check for BEQ
     br1_imm6 : in std_logic_vector(5 downto 0);
     br1_imm9 : in std_logic_vector(8 downto 0);
     alu1_mode: in std_logic_vector(5 downto 0);
@@ -20,7 +20,7 @@ entity exec_unit is
     branch_mode: in std_logic_vector(2 downto 0);
     alu_dest, alu_value : out std_logic_vector(15 downto 0);
     ls_dest,ls_value : out std_logic_vector(15 downto 0);
-    br_dest, br_value, br_pc : out std_logic_vector(15 downto 0);
+    br_value, br_pc, alu_pc, ls_pc : out std_logic_vector(15 downto 0);
     alu_mode: out std_logic_vector(5 downto 0);
     br_mode: out std_logic_vector(3 downto 0);
     ls_mode: out std_logic_vector(3 downto 0);
@@ -82,9 +82,9 @@ begin
     ls1_use : ALU port map(alu_op => ls_sel, inp_a => ls_oper1, inp_b => ls_oper2, alu_out => ls_value, out_c => ls_c, out_z => ls_z);
 
     alu_se10 : sign_extend10 port map(input => alu1_imm6, output =>alu_imm6);
-    alu_lshift : left_shift port map(input => alu1_oper2, output =>alu_lshift);
+    alu_lshifting : left_shift port map(input => alu1_oper2, output =>alu_lshift);
 
-    br_comp : comparator port map(input1 => br_oper1, input2 => br_oper2, status => eq_out);
+    br_comp : comparator port map(input1 => br_oper1, input2 => br_oper2, status => br_eq);
     br_se7 : sign_extend7 port map(input => br1_imm9, output =>br_imm9);
     br_se10 : sign_extend10 port map(input => br1_imm6, output =>br_imm6);
 
@@ -112,27 +112,27 @@ begin
         end if;
     end process;
 
-    ls_process : process(ls1_oper1,ls1_mode,ls1_imm6,ls1_imm9)
+    ls_process : process(ls1_oper,ls1_mode,ls1_imm6,ls1_imm9)
     begin
         if(ls1_mode="0111" or ls1_mode="0101") then
-            ls_oper1 <= ls1_oper1;
+            ls_oper1 <= ls1_oper;
             ls_oper2 <= ls_imm6;
             ls_sel <= "000";
         elsif(ls1_mode="0000") then
-            alu_oper1 <= ls1_imm9;
+            alu_oper1 <= ls_imm9;
             alu_oper2 <= "0000000000000000";
             alu_sel <= "000";
         end if;
     end process;
 
-    br_process : process(br1_oper1,br1_oper2,br1_mode,br1_imm6,br1_imm9,br1_pc)
+    br_process : process(br1_oper1,br1_oper2,br1_mode,br1_imm6,br1_imm9,br1_pc_in)
     begin
         if(br1_mode="1000") then
-            br_oper1 <= br1_pc;
+            br_oper1 <= br1_pc_in;
             br_oper2 <= br_imm6;
             br_sel <= "000";
         elsif(br1_mode="1001") then
-            br_oper1 <= br1_pc;
+            br_oper1 <= br1_pc_in;
             br_oper2 <= br_imm9;
             br_sel <= "000";
         elsif(br1_mode="1010") then
@@ -151,7 +151,8 @@ begin
     br_mode <= br1_mode;
     alu_dest <= alu1_dest;
     ls_dest <= ls1_dest;
-    br_dest <= br1_dest;
-    br_pc <= br1_pc;
+    br_pc <= br1_pc_in;
+    alu_pc <= alu1_pc_in;
+    ls_pc <= ls1_pc_in;
 
 end architecture;

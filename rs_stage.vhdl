@@ -11,24 +11,28 @@ entity rs_stage is
         -- there are 8 architectural registers
     ); 
     port(
-        clk, stall, reset: in std_logic;
-        opcode_1, opcode_2: in std_logic_vector(3 downto 0);
-        alu_op_1, alu_op_2: in std_logic_vector(1 downto 0);
-        imm6_1, imm6_2: in std_logic_vector(5 downto 0);
-        imm9_1, imm9_2 : in std_logic_vector(8 downto 0);
-        r_1, r_2, r_3, r_4, r_5, r_6: in std_logic_vector(15 downto 0);
-        v_2, v_3, v_5, v_6 : in std_logic;
-        prf_data_bus: in prf_data_array(0 to rs_size*2-1);-- (busy) (16 BIT DATA)
-        prf_addr_bus: out addr_array(0 to rs_size*2-1);
-        alu1_dest , ls1_dest : out std_logic_vector(15 downto 0);
-        alu1_oper1, alu1_oper2, ls1_oper: out std_logic_vector(15 downto 0);
+        clk, stall, reset: in std_logic;  --system ip
+        pc_in_1, pc_in_2:  in std_logic_vector(15 downto 0); --id stage
+        opcode_1, opcode_2: in std_logic_vector(3 downto 0);  --id stage
+        alu_op_1, alu_op_2: in std_logic_vector(1 downto 0);  -- id stage
+        imm6_1, imm6_2: in std_logic_vector(5 downto 0);  -- id stage
+        imm9_1, imm9_2 : in std_logic_vector(8 downto 0);  -- id stage
+        r_1, r_2, r_3, r_4, r_5, r_6: in std_logic_vector(15 downto 0);  --rr stage
+        v_2, v_3, v_5, v_6 : in std_logic;  --from rr
+        prf_data_bus: in prf_data_array(0 to rs_size*2-1);-- (busy) (16 BIT DATA)  --from prf
+        prf_addr_bus: out addr_array(0 to rs_size*2-1);  --from prf
+        alu1_dest , ls1_dest : out std_logic_vector(15 downto 0);  
+        alu1_oper1, alu1_oper2, ls1_oper: out std_logic_vector(15 downto 0);  
         alu1_imm6 : out std_logic_vector(5 downto 0);
+        alu1_pc : out std_logic_vector(15 downto 0);
         ls1_imm6 : out std_logic_vector(5 downto 0);
         ls1_imm9 : out std_logic_vector(8 downto 0);
+        ls1_pc : out std_logic_vector(15 downto 0);
         br1_mode: out std_logic_vector(3 downto 0);
-        br1_oper1, br1_oe  : out std_logic_vector(15 downto 0);
+        br1_oper1, br1_oper2 : out std_logic_vector(15 downto 0);
         br1_imm6 : out std_logic_vector(5 downto 0);
         br1_imm9 : out std_logic_vector(8 downto 0);
+        br1_pc : out std_logic_vector(15 downto 0);
         alu1_mode: out std_logic_vector(5 downto 0);
         ls1_mode: out std_logic_vector(3 downto 0);
         branch_mode: out std_logic_vector(2 downto 0)
@@ -63,6 +67,7 @@ begin
     process(clk)
     variable temp_opcode: opcode_vector := (others=>(others=>'0'));
     variable temp_alu_op: alu_op_vector := (others=>(others=>'0')); 
+    variable temp_pc: opr_vector := (others=>(others=>'0'));
     
     variable temp_opr_1: opr_vector := (others=>(others=>'0')); 
     variable temp_opr_2: opr_vector := (others=>(others=>'0')); 
@@ -111,6 +116,7 @@ begin
                         alu1_imm6 <= temp_imm6(i);
                         alu1_mode(5 downto 2) <= temp_opcode(i);
                         alu1_mode(1 downto 0) <= temp_alu_op(i);
+                        alu1_pc <= temp_pc(i);
                     end if;
                 end if;
 
@@ -122,6 +128,7 @@ begin
                         br1_imm6 <= temp_imm6(i);
                         br1_imm9 <= temp_imm9(i);
                         br1_mode <= temp_opcode(i);
+                        br1_pc <= temp_pc(i);
                     end if;
                 end if;
 
@@ -134,6 +141,7 @@ begin
                         ls1_imm6 <= temp_imm6(i);
                         ls1_imm9 <= temp_imm9(i);
                         ls1_mode <= temp_opcode(i);
+                        ls1_pc <= temp_pc(i);
                     end if;
                 end if;
             end loop;
@@ -141,6 +149,7 @@ begin
             for i in 0 to rs_size-1 loop
                 if temp_val(i) = '0' then
                     temp_opcode(i) := opcode_1;
+                    temp_pc(i) := pc_in_1;
                     temp_alu_op(i) := alu_op_1;
                     temp_opr_1(i) := r_2;
                     temp_opr_2(i) := r_3;
@@ -160,6 +169,7 @@ begin
                 if temp_val(i) = '0' then
                     temp_opcode(i) := opcode_2;
                     temp_alu_op(i) := alu_op_2;
+                    temp_pc(i) := pc_in_2;
                     temp_opr_1(i) := r_5;
                     temp_opr_2(i) := r_6;
                     temp_dest(i) := r_4;
