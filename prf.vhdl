@@ -35,6 +35,11 @@ entity rename_registers is
     write_reg: in addr_array(0 to rob_size*2-1);
     write_data: in prf_data_array(0 to rob_size*2-1);
 
+    --prf inputs from alu wb:
+    alu1_reg_data: in std_logic_vector(15 downto 0);
+    alu1_reg_addr:  in std_logic_vector(15 downto 0);
+    alu1_reg_en: in std_logic;
+
     rr1,rr4,
     rr2,rr3,rr5,rr6:  out std_logic_vector(15 downto 0);
     v2,v3,v5,v6: out std_logic
@@ -156,6 +161,11 @@ begin
                     temp_busy(to_integer(unsigned(write_reg(i)))) := '0';
                 end if;
             end loop;
+
+            if alu1_reg_en then
+                temp_value(to_integer(unsigned(alu1_reg_addr))) := alu1_reg_data;
+                temp_busy(to_integer(unsigned(alu1_reg_addr))) := '0';
+            end if;
 
             rat <= temp_rat;
             valid <= temp_valid;
