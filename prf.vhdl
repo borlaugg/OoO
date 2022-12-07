@@ -12,6 +12,7 @@ library ieee ;
 use ieee.std_logic_1164.all ;
 USE ieee.numeric_std.ALL;
 use work.array_pkg.all;
+use work.rob_array_pkg.all;
 
 -- r1 = r2 + r3
 -- r4 = r5 + r6 
@@ -31,9 +32,10 @@ entity rename_registers is
     prf_addr_bus: in addr_array(0 to rs_size*2-1);
     prf_data_bus: out prf_data_array(0 to rs_size*2-1); -- (busy) (16 BIT DATA)
 
-    write_en: in std_logic_vector(0 to rob_size*2-1);
-    write_reg: in addr_array(0 to rob_size*2-1);
-    write_data: in prf_data_array(0 to rob_size*2-1);
+    -- prf inputs from rob:
+    rob_write_en: in std_logic_vector(0 to rob_size-1);
+    rob_write_rreg: in bit16_vector(0 to rob_size-1);
+    rob_write_destreg: in bit16_vector(0 to rob_size-1);
 
     --prf inputs from alu wb:
     alu1_reg_data: in std_logic_vector(15 downto 0);
@@ -45,6 +47,10 @@ entity rename_registers is
     v2,v3,v5,v6: out std_logic
     -- for args: r2, r3, r5, r6 we return the addr of rename reg
     -- for dests: r1, r4 we return the new rename reg assigned to them
+
+    -- to rob
+    rob_addr_bus: in addr_array(0 to rob_size-1);
+    rob_busy_bus: out std_logic_vector(0 to rob_size-1);
     );
 end entity;
 
@@ -67,7 +73,7 @@ architecture renaming of rename_registers is
     signal value: val_array := (others=>(others=>'0'));
 begin
     process(prf_addr_bus)
-    variable index: integer;
+        variable index: integer;
     begin
         for i in 0 to rs_size*2-1 loop
             if prf_addr_bus(i)(16) = '0' then
@@ -79,6 +85,18 @@ begin
             end if;
         end loop;
     end process;    
+
+    process(rob_addr_bus)
+        variable index: integer;
+    begin
+        for i in 0 to rob_size-1 loop
+            if rob_addr_bus(i)(16) = '1' then
+                index := to_integer(unsigned(rob_addr_bus(i)(15 downto 0)));
+                rob_busy_bus(i) <= busy(index);
+            end if;
+        end loop;
+    end process;
+
     process(clk)
         variable trr1: integer;
         variable temp_rat: rat_vector;
@@ -155,12 +173,14 @@ begin
             end if;
 
             -- writing back to register file from the ROB
-            for i in 0 to rob_size*2-1 loop
-                if write_en(i) = '1' then
-                    temp_value(to_integer(unsigned(write_reg(i)))) := write_data(i)(15 downto 0);
-                    temp_busy(to_integer(unsigned(write_reg(i)))) := '0';
-                end if;
-            end loop;
+            -- for i in 0 to rob_size-1 loop
+            --     if rob_write_en(i) = '1' then
+            --         temp_value(to_integer(unsigned(write_rreg(i)))) := write_data(i)(15 downto 0);
+            --         temp_busy(to_integer(unsigned(write_reg(i)))) := '0';
+            --     end if;
+            -- end loop;
+            
+            -- @sankalp iska writeback logic likh de -- for when rob sends rename reg and dest reg to prf
 
             if (alu1_reg_en = '1') then
                 temp_value(to_integer(unsigned(alu1_reg_addr))) := alu1_reg_data;
