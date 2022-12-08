@@ -61,23 +61,33 @@ architecture superscalar of OoO_core is
             -- there are 8 architectural registers
         ); 
         port(gr1,gr4,
-        gr2,gr3,gr5,gr6: in std_logic_vector(2 downto 0);
-        reset, clk, stall: in std_logic;
-    
-        -- gr1-6 are the registers from the two lines of code above(in that order)
-        prf_addr_bus: in addr_array(0 to rs_size*2-1);
-        prf_data_bus: out prf_data_array(0 to rs_size*2-1); -- (busy) (16 BIT DATA)
-    
-        write_en: in std_logic_vector(0 to rob_size*2-1);
-        write_reg: in addr_array(0 to rob_size*2-1);
-        write_data: in prf_data_array(0 to rob_size*2-1);
-    
-        rr1,rr4,
-        rr2,rr3,rr5,rr6:  out std_logic_vector(15 downto 0);
-        v2,v3,v5,v6: out std_logic
-        -- for args: r2, r3, r5, r6 we return the addr of rename reg
-        -- for dests: r1, r4 we return the new rename reg assigned to them
-        );
+                gr2,gr3,gr5,gr6: in std_logic_vector(2 downto 0);
+                reset, clk, stall: in std_logic;
+
+                -- gr1-6 are the registers from the two lines of code above(in that order)
+                prf_addr_bus: in addr_array(0 to rs_size*2-1);
+                prf_data_bus: out prf_data_array(0 to rs_size*2-1); -- (busy) (16 BIT DATA)
+
+                -- prf inputs from rob:
+                rob_write_en: in std_logic_vector(0 to rob_size-1);
+                rob_write_rreg: in bit16_vector(0 to rob_size-1);
+                rob_write_destreg: in bit16_vector(0 to rob_size-1);
+
+                --prf inputs from alu wb:
+                alu1_reg_data: in std_logic_vector(15 downto 0);
+                alu1_reg_addr:  in std_logic_vector(15 downto 0);
+                alu1_reg_en: in std_logic;
+
+                rr1,rr4,
+                rr2,rr3,rr5,rr6:  out std_logic_vector(15 downto 0);
+                v2,v3,v5,v6: out std_logic
+                -- for args: r2, r3, r5, r6 we return the addr of rename reg
+                -- for dests: r1, r4 we return the new rename reg assigned to them
+
+                -- to rob
+                rob_addr_bus: in addr_array(0 to rob_size-1);
+                rob_busy_bus: out std_logic_vector(0 to rob_size-1);
+    );
     end component;
 
     component rs_stage is
@@ -189,6 +199,19 @@ architecture superscalar of OoO_core is
     signal id_imm6_1, id_imm_6_2 : std_logic_vector(5 downto 0) := (others=>'0');
     signal id_imm9_1, id_imm_9_2 : std_logic_vector(8 downto 0) := (others=>'0');
     signal id_alu_op1, id_alu_op2 : std_logic_vector(1 downto 0) := (others=>'0');
+    signal rr_1,rr_2,rr_3,rr_4,rr_5,rr_6 : std_logic_vector(15 downto 0);
+    signal rrv_2,rrv_3,rrv_5,rrv_6 : std_logic;
+    signal rs_alu1_dest,rs_ls1_dest,rs_alu1_oper1,rs_alu1_oper2,rs_ls1_oper,rs_alu1_pc,rs_ls1_pc,rs_br1_pc,rs_br1_oper1,rs_br1_oper2 : std_logic_vector(15 downto 0);
+    signal rs_ls1_imm9,rs_br1_imm9 : std_logic_vector(8 downto 0); 
+    signal rs_alu1_imm6,rs_ls1_imm6,rs_br1_imm6,rs_alu1_mode : std_logic_vector(5 downto 0);
+    signal rs_ls1_mode,rs_br1_mode : std_logic_vector(3 downto 0);
+    signal rs_branch_mode : std_logic_vector(2 downto 0);
+    signal wb_alu1_reg_data, wb_alu1_reg_addr : std_logic_vector(15 downto 0);
+    signal wb_alu1_reg_en : std_logic;
+    signal ex_ls_value, ex_ls_addr, ex_br_pc, ex_alu_pc, ex_ls_pc : std_logic_vector(15 downto 0);
+    signal ex_br_mode, ex_ls_mode : std_logic_vector(3 downto 0);
+    signal ex_alu_c, ex_alu_z, ex_ls_c, ex_ls_z, ex_br_c, ex_br_z : std_logic;
+
 begin
 
 ins_mem : InstructionMemory port map(clk => clk, addr_1 => a1,addr_2 => a2, data_out_1 => do1,data_out_2 => do2);
@@ -211,7 +234,7 @@ id_block: ID_STAGE port map(clk => clk,
         instr_in_1 => do1, instr_in_2 =>do2,  pc_in_1 => pc_out_1, pc_in_2 =>pc_out_2,
         r_1 => id_r1, r_2 => id_r2, r_3 => id_r3, r_4 => id_r4, r_5 => id_r5, r_6 => id_r6,
         opcode_1 => id_opcode1, opcode_2 => id_opcode2,
-        alu_op_1 =>id_alu_op1, alu_op_2 =>id_alu_op2,
+        alu_op_1 => id_alu_op1, alu_op_2 => id_alu_op2,
         imm6_1 => id_imm_6_1, imm6_2 => id_imm_6_2,
         imm9_1 => id_imm_9_1, imm9_2 => id_imm_9_2,
         pc_out_2 => id_pc2, pc_out_1 => id_pc1);
@@ -224,71 +247,81 @@ prf_block : rename_registers port map(gr1 => id_r1,gr4 => id_r4,
         prf_addr_bus => ,
         prf_data_bus => , -- (busy) (16 BIT DATA)
 
-        write_en => ,
-        write_reg => ,
-        write_data => ,
+        rob_write_en =>,
+        rob_write_rreg =>,
+        rob_write_destreg =>,
 
-        rr1 => ,rr4 => ,
-        rr2 => ,rr3 => ,rr5 => ,rr6 =>,
-        v2 => ,v3 => ,v5 => ,v6 =>
+         --prf inputs from alu wb:
+        alu1_reg_data => wb_alu1_reg_data,
+        alu1_reg_addr => wb_alu1_reg_addr,
+        alu1_reg_en => wb_alu1_reg_en,
+
+        rob_addr_bus =>,
+        rob_busy_bus =>,
+
+        rr1 => rr_1, rr4 => rr_4,
+        rr2 => rr_2, rr3 => rr_3, rr5 => rr_5, rr6 => rr_6,
+        v2 => rrv_2,v3 => rrv_3, v5 => rrv_5,v6 => rrv_6
         -- for args: r2, r3, r5, r6 we return the addr of rename reg
         -- for dests: r1, r4 we return the new rename reg assigned to them
 );
 
 rs_block: rs_stage port map (
         clk=> clk, reset=> rst,
-        pc_in_1=>, pc_in_2=>,
-        opcode_1=>, opcode_2=>,
-        alu_op_1=>, alu_op_2=>,
-        imm6_1=>, imm6_2=>,
-        imm9_1=>, imm9_2=>, 
-        r_1=>, r_2=>, r_3=>, r_4=>, r_5=>, r_6=>,
-        v_2=>, v_3=>, v_5=>, v_6=>,
+        pc_in_1 => id_pc1, pc_in_2 => id_pc2,
+        opcode_1 => id_opcode1, opcode_2 => id_opcode2,
+        alu_op_1=> id_alu_op1, alu_op_2 => id_alu_op1,
+        imm6_1 => id_imm_6_1, imm6_2 => id_imm_6_2,
+        imm9_1 => id_imm_9_1, imm9_2 => id_imm_9_2, 
+        r_1 => rr_1, r_2=> rr_2, r_3 => rr_3, r_4 => rr_4, r_5 => rr_5, r_6 => rr_6,
+        v_2 => rrv_2, v_3 => rrv_3, v_5 => rrv_5, v_6 => rrv_6,
         prf_data_bus=>,
         prf_addr_bus=>,
-        alu1_dest =>, ls1_dest =>,
-        alu1_oper1 =>, alu1_oper2 =>, ls1_oper =>,
-        alu1_imm6 =>,
-        alu1_pc =>,
-        ls1_imm6 =>,
-        ls1_imm9 =>,
-        ls1_pc =>,
-        br1_mode =>,
-        br1_oper1 =>, br1_oper2 =>,
-        br1_imm6 =>,
-        br1_imm9 =>,
-        br1_pc =>,
-        alu1_mode =>,
-        ls1_mode => ,
-        branch_mode =>
+        alu1_dest => rs_alu1_dest, ls1_dest => rs_ls1_dest,
+        alu1_oper1 => rs_alu1_oper1, alu1_oper2 => rs_alu1_oper2, ls1_oper => rs_ls1_oper,
+        alu1_imm6 => rs_alu1_imm6,
+        alu1_pc => rs_alu1_pc,
+        ls1_imm6 => rs_ls1_imm6,
+        ls1_imm9 => rs_ls1_imm9,
+        ls1_pc => rs_ls1_pc,
+        br1_mode => rs_br1_mode,
+        br1_oper1 => rs_br1_oper1, br1_oper2 => rs_br1_oper2,
+        br1_imm6 => rs_br1_imm6,
+        br1_imm9 => rs_br1_imm9,
+        br1_pc => rs_br1_pc,
+        alu1_mode => rs_alu1_mode,
+        ls1_mode => rs_ls1_mode,
+        branch_mode => rs_branch_mode
 );
 
 exec_block : exec_unit port map(
-    clk =>, stall => , reset => , 
-    alu1_dest =>, ls1_dest =>,
-    alu1_oper1 =>, alu1_oper2 =>, ls1_oper =>,
-    alu1_imm6 =>,
-    ls1_imm6 =>,
-    ls1_imm9 =>,
-    br1_mode =>,
-    br1_oper1 =>, br1_oper2 =>, br1_pc_in =>, ls1_pc_in =>, alu1_pc_in =>,
-    br1_imm6 =>,
-    br1_imm9 =>,
-    alu1_mode => ,
-    ls1_mode => ,
-    branch_mode =>,
+    clk => clk, stall => stall, reset => reset, 
+    alu1_dest => rs_alu1_dest, ls1_dest => rs_ls1_dest,
+    alu1_oper1 => rs_alu1_oper1, alu1_oper2 => rs_alu1_oper2, ls1_oper => rs_ls1_oper,
+    alu1_imm6 => rs_alu1_imm6,
+    ls1_imm6 => rs_ls1_imm6,
+    ls1_imm9 => rs_ls1_imm9,
+    br1_mode => rs_br1_mode,
+    br1_oper1 => rs_br1_oper1, br1_oper2 => rs_br1_oper2, br1_pc_in => rs_br1_pc_in, ls1_pc_in => rs_ls1_pc_in, alu1_pc_in => rs_alu1_pc_in,
+    br1_imm6 => rs_br1_imm6,
+    br1_imm9 => rs_br1_imm9,
+    alu1_mode => rs_alu1_mode,
+    ls1_mode => rs_ls1_mode,
+    branch_mode => rs_branch_mode,
     stall_pc1 => pco1, stall_pc2 => pco2,
-    alu_dest =>, alu_value =>,
-    ls_dest =>,ls_value =>,
-    br_value => br_value, br_pc =>, alu_pc =>, ls_pc =>,
-    alu_mode =>,
-    br_mode =>,
-    ls_mode =>,
+    alu_dest => ex_alu_dest, alu_value => ex_alu_value,
+    ls_dest => ex_ls_dest ,ls_value => ex_ls_value,
+    br_value => br_value, br_pc => ex_br_pc, alu_pc => ex_alu_pc, ls_pc => ex_ls_pc,
+    alu_mode => ex_alu_mode,
+    br_mode => ex_br_mode,
+    ls_mode => ex_ls_mode,
     stall_out => unstall,
-    alu_c =>, alu_z =>,
-    br_c =>, br_z =>,
-    ls_c =>, ls_z =>,
-    br_eq1 =>b_obs1, br_eq2=>b_obs2);
+    alu_c => ex_alu_c, alu_z => ex_alu_z,
+    br_c => ex_br_c, br_z => ex_br_z,
+    ls_c => ex_ls_c, ls_z => ex_ls_z,
+    br_eq1 =>b_obs1, br_eq2=>b_obs2,
+    alu1_reg_data => wb_alu1_reg_data, alu1_reg_addr => wb_alu1_reg_addr, alu1_reg_en => wb_alu1_reg_en
+    );
         
 ROB_block:  rob port map(
             clk =>, stall =>, reset  =>,
