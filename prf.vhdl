@@ -60,6 +60,7 @@ architecture renaming of rename_registers is
     type rat_vector is array(0 to 7) of integer;
     signal rat: rat_vector := (0, 1, 2, 3, 4, 5, 6, 7);
    -- variable tags : std_logic_vector() 
+   signal arch_reg_values: bit16_vector(0 to 7) := (others=>(others=>'0'));
 
 
     type int_array is array(0 to prf_size - 1) of integer;
@@ -105,6 +106,7 @@ begin
         variable temp_busy: std_logic_vector(0 to prf_size - 1);
         variable temp_value: val_array;
         variable rat_gr2, rat_gr3, rat_gr5, rat_gr6: integer;
+        variable temp_arch_reg_values: bit16_vector(0 to 7);
     begin
         if falling_edge(clk) then
             temp_rat := rat;
@@ -116,6 +118,7 @@ begin
             rat_gr3 := temp_rat(to_integer(unsigned(gr3)));
             temp_counter(rat_gr2) := temp_counter(rat_gr2) + 1;
             temp_counter(rat_gr3) := temp_counter(rat_gr3) + 1;
+            temp_arch_reg_values := arch_reg_values;
             
             rr2 <= std_logic_vector(to_unsigned(rat_gr2, 16));
             rr3 <= std_logic_vector(to_unsigned(rat_gr3, 16));
@@ -173,12 +176,20 @@ begin
             end if;
 
             -- writing back to register file from the ROB
-            -- for i in 0 to rob_size-1 loop
-            --     if rob_write_en(i) = '1' then
-            --         temp_value(to_integer(unsigned(write_rreg(i)))) := write_data(i)(15 downto 0);
-            --         temp_busy(to_integer(unsigned(write_reg(i)))) := '0';
-            --     end if;
-            -- end loop;
+            for i in 0 to rob_size-1 loop
+                if rob_write_en(i) = '1' then
+                    -- temp_value(to_integer(unsigned(write_rreg(i)))) := rob_write_data(i)(15 downto 0);
+                    -- temp_busy(to_integer(unsigned(write_reg(i)))) := '0';
+                    temp_arch_reg_values(to_integer(unsigned(rob_write_destreg(i)))) := temp_values(to_integer(unsigned(rob_write_rreg(i))))
+                    temp_counter(to_integer(unsigned(rob_write_rreg(i)))) := temp_counter(to_integer(unsigned(rob_write_rreg(i)))) - 1;
+                end if;
+            end loop;
+
+            for i in 0 to prf_size-1 loop
+                if temp_counter(i) <= 0 then
+                    temp_valid(i) := '0';
+                end if;
+            end loop;
             
             -- @sankalp iska writeback logic likh de -- for when rob sends rename reg and dest reg to prf
 
@@ -192,6 +203,7 @@ begin
             value <= temp_value;
             busy <= temp_busy;    
             counter <= temp_counter;  
+            arch_reg_values <= temp_arch_reg_values;
         end if;
     end process;
 
