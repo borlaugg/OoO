@@ -42,7 +42,7 @@ architecture superscalar of OoO_core is
     end component;
 
     component ID_STAGE is
-        port(clk: in std_logic;
+        port(clk, stall, rst: in std_logic;
         instr_in_1, instr_in_2, pc_in_1, pc_in_2: in std_logic_vector(15 downto 0);
         r_1, r_2, r_3, r_4, r_5, r_6: out std_logic_vector(3 downto 0); -- 1111 don't care
         opcode_1, opcode_2: out std_logic_vector(3 downto 0);
@@ -230,7 +230,7 @@ bp_block2: bpt port map (rst => rst, clk => clk, b_obs =>b_obs2, opcode => pc_ou
 
 stall <= stall1 or stall2;
 
-id_block: ID_STAGE port map(clk => clk, 
+id_block: ID_STAGE port map(clk => clk, stall => stall, rst => rst,
         instr_in_1 => do1, instr_in_2 =>do2,  pc_in_1 => pc_out_1, pc_in_2 =>pc_out_2,
         r_1 => id_r1, r_2 => id_r2, r_3 => id_r3, r_4 => id_r4, r_5 => id_r5, r_6 => id_r6,
         opcode_1 => id_opcode1, opcode_2 => id_opcode2,
@@ -324,7 +324,7 @@ exec_block : exec_unit port map(
     );
         
 ROB_block:  rob port map(
-            clk =>, stall =>, reset  =>,
+            clk => clk, stall => stall, reset  => rst,
             enable1 =>, enable2 =>,
             PC1 =>, PC4 =>,
             r1 =>, r4 =>
