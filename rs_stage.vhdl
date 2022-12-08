@@ -96,6 +96,8 @@ begin
         temp_imm9 := imm9;
         temp_ready := ready;
         temp_count := count;
+        
+        --temp_
 
         age_alu1 := 0;
         age_ls1 := 0;
@@ -183,7 +185,6 @@ begin
                     exit;    
                 end if;
             end loop;
-            
 
             for i in 0 to rs_size-1 loop
                 prf_addr_bus(i*2)(16) <= temp_val_1(i);

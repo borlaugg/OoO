@@ -42,15 +42,19 @@ entity rename_registers is
     alu1_reg_addr:  in std_logic_vector(15 downto 0);
     alu1_reg_en: in std_logic;
 
-    rr1,rr4,
-    rr2,rr3,rr5,rr6:  out std_logic_vector(15 downto 0);
-    v2,v3,v5,v6: out std_logic
+    -- from ls rs
+    ls_rs_wb_addr: in std_logic_vector(15 downto 0); -- addr for writing
+    ls_rs_wb_en: in std_logic; -- to memory to enable write
+    ls_rs_wb_data: in std_logic_vector(15 downto 0);
+
+    rr1,rr4,rr2,rr3,rr5,rr6:  out std_logic_vector(15 downto 0);
+    v2,v3,v5,v6: out std_logic;
     -- for args: r2, r3, r5, r6 we return the addr of rename reg
     -- for dests: r1, r4 we return the new rename reg assigned to them
 
     -- to rob
     rob_addr_bus: in addr_array(0 to rob_size-1);
-    rob_busy_bus: out std_logic_vector(0 to rob_size-1);
+    rob_busy_bus: out std_logic_vector(0 to rob_size-1)
     );
 end entity;
 
@@ -180,7 +184,7 @@ begin
                 if rob_write_en(i) = '1' then
                     -- temp_value(to_integer(unsigned(write_rreg(i)))) := rob_write_data(i)(15 downto 0);
                     -- temp_busy(to_integer(unsigned(write_reg(i)))) := '0';
-                    temp_arch_reg_values(to_integer(unsigned(rob_write_destreg(i)))) := temp_values(to_integer(unsigned(rob_write_rreg(i))))
+                    temp_arch_reg_values(to_integer(unsigned(rob_write_destreg(i)))) := temp_values(to_integer(unsigned(rob_write_rreg(i))));
                     temp_counter(to_integer(unsigned(rob_write_rreg(i)))) := temp_counter(to_integer(unsigned(rob_write_rreg(i)))) - 1;
                 end if;
             end loop;
@@ -196,6 +200,11 @@ begin
             if (alu1_reg_en = '1') then
                 temp_value(to_integer(unsigned(alu1_reg_addr))) := alu1_reg_data;
                 temp_busy(to_integer(unsigned(alu1_reg_addr))) := '0';
+            end if;
+
+            if (ls_rs_reg_en = '1') then
+                temp_value(to_integer(unsigned(ls_rs_reg_addr))) := ls_rs_reg_data;
+                temp_busy(to_integer(unsigned(ls_rs_reg_addr))) := '0';
             end if;
 
             rat <= temp_rat;

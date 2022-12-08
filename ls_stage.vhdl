@@ -17,15 +17,19 @@ entity ls_rs_stage is
         imm6_1, imm6_2: in std_logic_vector(5 downto 0);  -- id stage
         imm9_1, imm9_2 : in std_logic_vector(8 downto 0);  -- id stage
         r_a_1, r_b_1, r_a_2, r_b_2: in std_logic_vector(15 downto 0);  --rr stage
-        v_b_1, v_b_2: in std_logic;  --from rr
+        v_a_1, v_a_2, v_b_1, v_b_2: in std_logic;  --from rr
         prf_data_bus: in prf_data_array(0 to rs_size*2-1);-- (busy) (16 BIT DATA)  --from prf
-        prf_addr_bus: out addr_array(0 to rs_size*2-1);
+        prf_addr_bus: out addr_array(0 to rs_size*2-1); 
 
+        mem_read_addr_bus: out std_logic_vector(15 downto 0); -- memory read addr
         mem_read_data_bus: in std_logic_vector(15 downto 0); -- from data memory
-        mem_write_addr_bus: out std_logic_vector(15 downto 0); -- addr for writing
         mem_write_en: out std_logic; -- to memory to enable write
+        mem_write_addr_bus: out std_logic_vector(15 downto 0); -- addr for writing
         mem_write_data_bus: out std_logic_vector(15 downto 0);
-        mem_read_addr_bus: out std_logic_vector(15 downto 0) -- memory read addr
+
+        prf_wb_addr: out std_logic_vector(15 downto 0); -- addr for writing
+        prf_wb_en: out std_logic; -- to memory to enable write
+        prf_wb_data: out std_logic_vector(15 downto 0)
 
     );
 end entity ls_rs_stage;
@@ -74,6 +78,7 @@ begin
 
         if falling_edge(clk) then
             mem_write_en <= '0';
+            prf_wb_en <= '0';
             temp_opcode := opcode;
             temp_opr := opr;
 
@@ -86,88 +91,93 @@ begin
             temp_head_pointer := head_pointer;
             temp_tail_pointer := tail_pointer;
 
-            if temp_val(temp_head_pointer) = '1' and temp_val_1(temp_head_pointer) = '1' then
+            if temp_val(temp_head_pointer) = '1' then
                 -- wb initiate
-                if temp_opcode(temp_head_pointer) = "1100" then
-                    
-                    mem_write_addr_bus <= temp_opr;
-                    mem_write_data_bus <= temp_opr;
+                if temp_opcode(temp_head_pointer) = "1100" and temp_val_1(temp_head_pointer) = '1' and temp_val_2(temp_head_pointer) = '1' then
+                    mem_write_data_bus <= temp_opr_1(temp_head_pointer);
+                    mem_write_addr_bus <= std_logic_vector(unsigned(temp_opr_2(temp_head_pointer))+unsigned(temp_imm6(temp_head_pointer)));
                     mem_write_en <= '1';
-                    temp_head_pointer = (temp_head_pointer+1) rem rs_size;
-                else if;
-            end if;
+                    temp_val(temp_head_pointer) := '0';
+                    temp_head_pointer := (temp_head_pointer+1) rem rs_size;
+                end if;
 
-            if(temp_ready(i) = '1' and ((temp_opcode(i) = "0111") or (temp_opcode(i) = "0000") or (temp_opcode(i) = "0101") or (temp_opcode(i) = "1100") or (temp_opcode(i) = "1101"))) then
-                if temp_count(i) > age_ls1 then
-                    age_ls1 := temp_count(i);
-                    ls1_oper <= temp_opr_1(i);
-                    ls1_dest <= temp_dest(i);
-                    ls1_imm6 <= temp_imm6(i);
-                    ls1_imm9 <= temp_imm9(i);
-                    ls1_mode <= temp_opcode(i);
-                    ls1_pc <= temp_pc(i);
+                if temp_opcode(temp_head_pointer) = "0101" and temp_val_2(temp_head_pointer) = '1' then
+                    mem_read_addr_bus <= std_logic_vector(unsigned(temp_opr_2(temp_head_pointer))+unsigned(temp_imm6(temp_head_pointer)));
+
+                    prf_wb_data <= mem_read_data_bus;
+                    prf_wb_addr <= temp_opr_1(temp_head_pointer);
+                    prf_wb_en <= '1';
+                    temp_val(temp_head_pointer) := '0';
+                    temp_head_pointer := (temp_head_pointer+1) rem rs_size;
                 end if;
             end if;
-          
-        for i in 0 to rs_size-1 loop
-            if temp_val(i) = '0' then
-                temp_opcode(i) := opcode_1;
-                temp_pc(i) := pc_in_1;
-                temp_alu_op(i) := alu_op_1;
-                temp_opr_1(i) := r_2;
-                temp_opr_2(i) := r_3;
-                temp_dest(i) := r_1;
+
+            if opcode_1 = "1100" then
+                temp_opcode(temp_tail_pointer) := opcode_1;
+                temp_opr_1(i) := r_a_1;
+                temp_opr_2(i) := r_b_1;
+                temp_dest(i) := r_a_1;
                 temp_val(i) := '1';
-                temp_val_1(i) := v_2;
-                temp_val_2(i) := v_3;
+                temp_val_1(i) := v_a_1;
+                temp_val_2(i) := v_b_1;
                 temp_imm6(i) := imm6_1;
                 temp_imm9(i) := imm9_1;
-                temp_ready(i) := '0';
-                temp_count(i) := 0;
-                exit;    
+                temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
             end if;
-        end loop; 
 
-            for i in 0 to rs_size-1 loop
-                if temp_val(i) = '0' then
-                    temp_opcode(i) := opcode_2;
-                    temp_alu_op(i) := alu_op_2;
-                    temp_pc(i) := pc_in_2;
-                    temp_opr_1(i) := r_5;
-                    temp_opr_2(i) := r_6;
-                    temp_dest(i) := r_4;
-                    temp_val(i) := '1';
-                    temp_val_1(i) := v_5;
-                    temp_val_2(i) := v_6;
-                    temp_imm6(i) := imm6_2;
-                    temp_imm9(i) := imm9_2;
-                    temp_ready(i) := '0';
-                    temp_count(i) := 0;
-                    exit;    
-                end if;
-            end loop;
-            
+            if opcode_1 = "0101" then
+                temp_opcode(temp_tail_pointer) := opcode_1;
+                temp_opr_1(i) := "1111";
+                temp_opr_2(i) := r_b_1;
+                temp_dest(i) := r_a_1;
+                temp_val(i) := '1';
+                temp_val_1(i) := v_a_1;
+                temp_val_2(i) := v_b_1;
+                temp_imm6(i) := imm6_1;
+                temp_imm9(i) := imm9_1;
+                temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
+            end if;
+
+            if opcode_2 = "1100" then
+                temp_opcode(temp_tail_pointer) := opcode_2;
+                temp_opr_1(i) := r_a_2;
+                temp_opr_2(i) := r_b_2;
+                temp_dest(i) := r_a_2;
+                temp_val(i) := '1';
+                temp_val_1(i) := v_a_2;
+                temp_val_2(i) := v_b_2;
+                temp_imm6(i) := imm6_2;
+                temp_imm9(i) := imm9_2;
+                temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
+            end if;
+
+            if opcode_2 = "0101" then
+                temp_opcode(temp_tail_pointer) := opcode_2;
+                temp_opr_1(i) := "1111";
+                temp_opr_2(i) := r_b_2;
+                temp_dest(i) := r_a_2;
+                temp_val(i) := '1';
+                temp_val_1(i) := v_a_2;
+                temp_val_2(i) := v_b_2;
+                temp_imm6(i) := imm6_2;
+                temp_imm9(i) := imm9_2;
+                temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
+            end if;
 
             for i in 0 to rs_size-1 loop
                 prf_addr_bus(i*2)(16) <= temp_val_1(i);
                 prf_addr_bus(i*2)(15 downto 0) <= temp_opr_1(i);
-    
                 prf_addr_bus(i*2+1)(16) <= temp_val_2(i);
                 prf_addr_bus(i*2+1)(15 downto 0) <= temp_opr_2(i);
             end loop;
             
             for i in 0 to rs_size-1 loop
                 if temp_val(i) = '1' then
-
                     temp_val_1(i) := prf_data_bus(i*2)(16);
                     temp_opr_1(i) := prf_data_bus(i*2)(15 downto 0);
-        
                     temp_val_2(i) := prf_data_bus(i*2+1)(16);
                     temp_opr_2(i) := prf_data_bus(i*2+1)(15 downto 0);
-                    
-                    temp_ready(i) := temp_val_1(i) and temp_val_2(i);
                 end if;
-                temp_count(i) := temp_count(i)+1;
             end loop;
         opcode <= temp_opcode;
         opr_1 <= temp_opr_1;
@@ -178,8 +188,10 @@ begin
         val_2 <= temp_val_2;
         imm6 <= temp_imm6;
         imm9 <= temp_imm9;
-        ready <= temp_ready;
-        count <= temp_count;
+
+        head_pointer <= temp_head_pointer;
+        tail_pointer <= temp_tail_pointer;
+
         end if;
     end process;
 end architecture;

@@ -24,13 +24,13 @@ entity rob is
         -- there are 8 architectural registers
     ); 
     port(
-        clk, stall, reset: in std_logic;
- 
-        -- ports for adding to ROB (from the dispatch stage)
+        clk, stall, reset, exec: in std_logic; --exec is bp taken or not
+
+        -- ports for adding to ROB (from the dispatch stage)(actually coming from rs)
         enable1, enable2: in std_logic; -- enables for channels (each channel corresponds to one entry to be added)
-        -- PC1, PC4: in std_logic_vector(15 downto 0); -- PC of the instruction
         r1, r4: in std_logic_vector(15 downto 0); -- dest regs
         rr1, rr4: in std_logic_vector(15 downto 0); -- rename regs assigned to the instr
+        PC1, PC4, PC_BP1, PC_BP2: in std_logic_vector(15 downto 0);
 
         -- ports for writing back to the prf
         write_en: out std_logic_vector(0 to rob_size-1);
@@ -39,7 +39,7 @@ entity rob is
 
         -- to prf
         addr_bus: out addr_array(0 to rob_size-1);
-        busy_bus: in std_logic_vector(0 to rob_size-1);
+        busy_bus: in std_logic_vector(0 to rob_size-1)
 
         -- inputs from the execution unit
         -- exec_inp_en: in std_logic_vector(0 to 1);
@@ -49,17 +49,18 @@ entity rob is
     );
 end entity rob;
 
-architecture juju of rob is
+architecture idnar of rob is
     -- type opcode_vector is array(0 to rob_size-1) of std_logic_vector(3 downto 0);
     -- type alu_op_vector is array(0 to rob_size-1) of std_logic_vector(1 downto 0);
 
     -- defining the cols of the ROB
     signal entry_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
+    signal spec : std_logic(0 to rob_size-1) := (others=>'0');
     -- signal value: bit16_vector(0 to rob_size - 1) := (others => (others=>'0'));
     -- signal value_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
     signal dest_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
     signal rename_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
-    -- signal PCs: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
+    signal PCs: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
     -- signal branch_tag: bit16_vector(0 to rob_size-1) := (others=>'0');
 
     -- other state variables
@@ -73,11 +74,12 @@ begin
     process(clk)
         -- defining the cols of the ROB
         variable temp_entry_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
+        variable temp_spec : std_logic(0 to rob_size-1) := (others=>'0');
         -- variable temp_value: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
         -- variable temp_value_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
         variable temp_dest_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
         variable temp_rename_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
-        -- variable temp_PCs: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
+        variable temp_PCs: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
         -- signal branch_tag: bit16_vector(0 to rob_size-1) := (others=>'0');
 
         -- other state variables
@@ -101,6 +103,7 @@ begin
         -- temp_value_valid := value_valid; 
         temp_dest_reg := dest_reg; 
         temp_rename_reg := rename_reg; 
+        temp_spec := spec;
         -- temp_PCs := PCs;
         temp_head := head; 
         temp_insert_loc := insert_loc; 
@@ -138,7 +141,7 @@ begin
                 -- temp_value_valid(temp_insert_loc) := '0';
                 temp_dest_reg(temp_insert_loc) := r1;
                 temp_rename_reg(temp_insert_loc) := rr1;
-                -- temp_PCs(temp_insert_loc) := PC1;
+                temp_PCs(temp_insert_loc) := PC1;
                 temp_is_full := '0';
 
                 temp_insert_loc := (temp_insert_loc + 1) mod rob_size;
@@ -149,7 +152,7 @@ begin
                     -- temp_value_valid(temp_insert_loc) := '0';
                     temp_dest_reg(temp_insert_loc) := r4;
                     temp_rename_reg(temp_insert_loc) := rr4;
-                    -- temp_PCs(temp_insert_loc) := PC4;
+                    temp_PCs(temp_insert_loc) := PC4;
                     temp_is_full := '0';
 
                     temp_insert_loc := (temp_insert_loc + 1) mod rob_size;
@@ -180,7 +183,7 @@ begin
                     -- temp_value(index) := (others=>'0');
                     temp_dest_reg(index) := (others=>'0');
                     temp_rename_reg(index) := (others=>'0');
-                    -- temp_PCs(index) := (others=>'0');
+                    temp_PCs(index) := (others=>'0');
                     temp_head := (temp_head + 1) rem rob_size;
                     temp_is_full := '0';
                 else 
@@ -193,13 +196,39 @@ begin
 
         end if;
 
+        for i in 0 to rob_size-1 loop      -- speculate code     
+            if (to_integer(unsigned(PC1)) > to_integer(unsigned(PC_BP1))) then
+                temp_spec(i) := '1';
+            elsif (to_integer(unsigned(PC1)) > to_integer(unsigned(PC_BP2))) then
+                temp_spec(i) := '1';
+            else 
+                temp_spec(i) := '0';
+            end if;
+            if (to_integer(unsigned(PC4)) > to_integer(unsigned(PC_BP1))) then
+                temp_spec(i) := '1';
+            elsif (to_integer(unsigned(PC4)) > to_integer(unsigned(PC_BP2))) then
+                temp_spec(i) := '1';
+            else 
+                temp_spec(i) := '0';
+            end if;
+        end loop;
+
+        if (stall xor exec) then --handles mispred
+            for i in 0 to rob_size-1 loop 
+                if (temp_spec(i)='1') then
+                    temp_entry_valid := '0';
+                end if;
+            end loop;
+        end if;
+
         entry_valid <= temp_entry_valid;
         -- value <= temp_value; 
         -- value_valid <= temp_value_valid; 
         dest_reg <= temp_dest_reg; 
         rename_reg <= temp_rename_reg; 
-        -- PCs <= temp_PCs;
+        PCs <= temp_PCs;
         head <= temp_head; 
+        spec <= temp_spec;
         insert_loc <= temp_insert_loc; 
         is_full <= temp_is_full; 
         write_en <= temp_write_en; 
