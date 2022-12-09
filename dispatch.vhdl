@@ -44,8 +44,10 @@ end entity dispatch;
 architecture dispatching of dispatch is
 begin
 
-    rob_r1 <= id_r_1;
-    rob_r4 <= id_r_4;
+    rob_r1(3 downto 0) <= id_r_1;
+    rob_r4(3 downto 0) <= id_r_4;
+    rob_r1(15 downto 4) <= (others=>'0');
+    rob_r4(15 downto 4) <= (others=>'0');
     rob_rr1 <= prf_r_1;
     rob_rr4 <= prf_r_4;
     rob_PC1 <= id_pc_out_1;
@@ -54,7 +56,7 @@ begin
     process(clk)
     begin
         if falling_edge(clk) then
-            if(id_opcode_1="0111" or id_opcode_1="0101" or id_opcode_1="0000") then --ls instructions
+            if(id_opcode_1="0111" or id_opcode_1="0101" or id_opcode_1="0011") then --ls instructions
                 ls_rs_pc_in_1 <= id_pc_out_1;
                 ls_rs_opcode_1 <= id_opcode_1;
                 ls_rs_imm6_1 <= id_imm6_1;
@@ -81,7 +83,7 @@ begin
     process(clk)
     begin
         if falling_edge(clk) then
-            if(id_opcode_2="0111" or id_opcode_2="0101" or id_opcode_2="0000") then--ls instructions
+            if(id_opcode_2="0111" or id_opcode_2="0101" or id_opcode_2="0011") then--ls instructions
                 ls_rs_pc_in_2 <= id_pc_out_2;
                 ls_rs_opcode_2 <= id_opcode_2;
                 ls_rs_imm6_2 <= id_imm6_2;

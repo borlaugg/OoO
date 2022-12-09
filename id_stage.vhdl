@@ -5,6 +5,7 @@
 library ieee;
 use ieee.std_logic_1164.all;
 USE ieee.numeric_std.ALL;
+use work.array_pkg.all;
 
 entity REG_VALIDATOR is
 port(
@@ -34,6 +35,7 @@ end architecture;
 library ieee;
 use ieee.std_logic_1164.all;
 USE ieee.numeric_std.ALL;
+use work.array_pkg.all;
 
 entity ID_STAGE is
 port(clk, stall, rst: in std_logic;
@@ -64,19 +66,19 @@ signal head : integer := 0;
 signal tail : integer := 0;
 
 signal instruction_queue: bit16_vector(0 to 15); --using size of queue as 16
-signal temp_instr_in_1,temp_instr_in2 : std_logic_vector(15 downto 0); --to get the last 2 instructions of queue
+signal temp_instr_in_1,temp_instr_in_2 : std_logic_vector(15 downto 0); --to get the last 2 instructions of queue
 
 begin
 
-	insert_queue: process(clk):
+	insert_queue: process(clk)
 	variable temp_instr : std_logic_vector(15 downto 0);
 	begin
 		if falling_edge(clk) and stall = '0' and rst = '0' then
-			if(instr_in_1 != '1100') then
+			if(instr_in_1 /= "1100") then
 				instruction_queue(tail) <= instr_in_1;
 				tail<=tail+1;
 			else
-				if(instr_in_1(7)='1')
+				if(instr_in_1(7)='1') then
 					temp_instr(15 downto 12) := "0111";
 					temp_instr(11 downto 9) := instr_in_1(11 downto 9);
 					temp_instr(8 downto 6) := "111";
@@ -84,7 +86,7 @@ begin
 					instruction_queue(tail) <= temp_instr;
 					tail <= (tail+1) rem 16;
 				end if;
-				if(instr_in_1(6)='1')
+				if(instr_in_1(6)='1') then
 					temp_instr(15 downto 12) := "0111";
 					temp_instr(11 downto 9) := instr_in_1(11 downto 9);
 					temp_instr(8 downto 6) := "110";
@@ -92,7 +94,7 @@ begin
 					instruction_queue(tail) <= temp_instr;
 					tail <= (tail+1) rem 16;
 				end if;
-				if(instr_in_1(5)='1')
+				if(instr_in_1(5)='1') then
 					temp_instr(15 downto 12) := "0111";
 					temp_instr(11 downto 9) := instr_in_1(11 downto 9);
 					temp_instr(8 downto 6) := "101";
@@ -100,7 +102,7 @@ begin
 					instruction_queue(tail) <= temp_instr;
 					tail <= (tail+1) rem 16;
 				end if;
-				if(instr_in_1(4)='1')
+				if(instr_in_1(4)='1') then
 					temp_instr(15 downto 12) := "0111";
 					temp_instr(11 downto 9) := instr_in_1(11 downto 9);
 					temp_instr(8 downto 6) := "100";
@@ -108,7 +110,7 @@ begin
 					instruction_queue(tail) <= temp_instr;
 					tail <= (tail+1) rem 16;
 				end if;
-				if(instr_in_1(3)='1')
+				if(instr_in_1(3)='1') then
 					temp_instr(15 downto 12) := "0111";
 					temp_instr(11 downto 9) := instr_in_1(11 downto 9);
 					temp_instr(8 downto 6) := "011";
@@ -116,7 +118,7 @@ begin
 					instruction_queue(tail) <= temp_instr;
 					tail <= (tail+1) rem 16;
 				end if;
-				if(instr_in_1(2)='1')
+				if(instr_in_1(2)='1') then
 					temp_instr(15 downto 12) := "0111";
 					temp_instr(11 downto 9) := instr_in_1(11 downto 9);
 					temp_instr(8 downto 6) := "010";
@@ -124,7 +126,7 @@ begin
 					instruction_queue(tail) <= temp_instr;
 					tail <= (tail+1) rem 16;
 				end if;
-				if(instr_in_1(1)='1')
+				if(instr_in_1(1)='1')  then
 					temp_instr(15 downto 12) := "0111";
 					temp_instr(11 downto 9) := instr_in_1(11 downto 9);
 					temp_instr(8 downto 6) := "001";
@@ -132,7 +134,7 @@ begin
 					instruction_queue(tail) <= temp_instr;
 					tail <= (tail+1) rem 16;
 				end if;
-				if(instr_in_1(0)='1')
+				if(instr_in_1(0)='1') then
 					temp_instr(15 downto 12) := "0111";
 					temp_instr(11 downto 9) := instr_in_1(11 downto 9);
 					temp_instr(8 downto 6) := "000";
@@ -144,7 +146,7 @@ begin
 		end if;
 	end process;
 
-	delete_queue: process(clk):
+	delete_queue: process(clk)
 	begin
 		if falling_edge(clk) and stall = '0' and rst = '0' then
 			temp_instr_in_1 <= instruction_queue(head);
