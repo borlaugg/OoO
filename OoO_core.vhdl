@@ -2,10 +2,9 @@ library ieee;
 use ieee.std_logic_1164.all;
 use ieee.numeric_std.all;
 use work.array_pkg.all;
-use work.rob_array_pkg.all;
 
 entity OoO_core is
-    port (clk, reset : in std_logic;
+    port (clk, rst : in std_logic;
     instr_1, instr_2 : in std_logic_vector(15 downto 0)
     );
 end entity;
@@ -27,6 +26,7 @@ architecture superscalar of OoO_core is
     port (rst, clk, b_obs, unstall: in std_logic; -- lol :)
           opcode: in  std_logic_vector(3 downto 0);
           pc_in: in std_logic_vector(15 downto 0);
+          dest_reg: in std_logic_vector(2 downto 0);
           b_pred: out std_logic;
           pc_out: out std_logic_vector(15 downto 0)
         );
@@ -137,10 +137,9 @@ architecture superscalar of OoO_core is
             prf_addr_bus: out addr_array(0 to rs_size*2-1); 
     
             mem_read_data_bus: in std_logic_vector(15 downto 0); -- from data memory
-            mem_write_addr_bus: out std_logic_vector(15 downto 0); -- addr for writing
+            mem_addr_bus: out std_logic_vector(15 downto 0); -- addr for writing
             mem_write_en: out std_logic; -- to memory to enable write
             mem_write_data_bus: out std_logic_vector(15 downto 0);
-            mem_read_addr_bus: out std_logic_vector(15 downto 0); -- memory read addr
     
             prf_wb_addr: out std_logic_vector(15 downto 0); -- addr for writing
             prf_wb_en: out std_logic; -- to memory to enable write
@@ -152,7 +151,8 @@ architecture superscalar of OoO_core is
 
     component rs_stage is
         generic(
-            rs_size: integer := 16
+            rs_size: integer := 16;
+            rob_size: integer := 20
             -- there are 8 architectural registers
         ); 
         port(
@@ -251,6 +251,17 @@ architecture superscalar of OoO_core is
         );
     end component;
 
+    component  DataMemory is
+    port(clk, write_en: in std_logic;
+          addr: in std_logic_vector(15 downto 0);
+          data_in: in std_logic_vector(15 downto 0);
+          data_out: out std_logic_vector(15 downto 0)
+    );
+    end component;
+    signal data_mem_write_en: std_logic;
+    signal mem_data_write_bus: std_logic_vector(15 downto 0);
+    signal mem_data_read_bus: std_logic_vector(15 downto 0);
+    signal mem_data_addr_bus: std_logic_vector(15 downto 0);
     signal id_pc1, id_pc2, br_value,pc_i, pc_o, pc1, pc2, pco1, pco2, do1, do2, a1, a2 : std_logic_vector(15 downto 0) := (others=>'0');
     signal stall1, stall2, stall, unstall, b_obs1, b_obs2, rs_en1, rs_en2 : std_logic := '0';
     signal id_r1, id_r2, id_r3, id_r4, id_r5, id_r6 : std_logic_vector(3 downto 0) := (others=>'0');
@@ -304,11 +315,16 @@ architecture superscalar of OoO_core is
 
     signal prf_r_1, prf_r_2, prf_r_3, prf_r_4, prf_r_5, prf_r_6:  std_logic_vector(15 downto 0);  --rr stage
     signal prf_v_2, prf_v_3, prf_v_5, prf_v_6 :  std_logic;  --from rr
+ 
 
 
 begin
 
 ins_mem : InstructionMemory port map(clk => clk, addr_1 => a1,addr_2 => a2, data_out_1 => do1,data_out_2 => do2);
+data_mem : DataMemory port map(clk => clk, write_en => mem_write_en,
+          addr => mem_data_addr_bus,
+          data_in => mem_data_write_bus,
+          data_out => mem_data_read_bus);
 
 if_block: IF_STAGE port map(clk => clk, stall => stall,  unstall => unstall, rst => rst,
             mem_data_in_1 => do1, dest_pc =>br_value, mem_data_in_2 => do2, pc_in => pc_i, 
@@ -317,10 +333,10 @@ if_block: IF_STAGE port map(clk => clk, stall => stall,  unstall => unstall, rst
 incr_block: Increment port map(pc_in => pc_o, pc_out => pc_i);
 
 bp_block1: bpt port map (rst => rst, clk => clk, b_obs => b_obs1, opcode => pc_out_1(15 downto 12), b_pred => stall1, unstall => unstall,
-                        pc_in => pc1, pc_out =>pco1);
+                        dest_reg => instr_1(11 downto 9), pc_in => pc1, pc_out =>pco1);
 
 bp_block2: bpt port map (rst => rst, clk => clk, b_obs =>b_obs2, opcode => pc_out_2(15 downto 12), b_pred => stall2,  unstall => unstall,
-                        pc_in => pc2, pc_out =>pco2);
+                        dest_reg => instr_1(11 downto 9), pc_in => pc2, pc_out =>pco2);
 
 stall <= stall1 or stall2;
 
@@ -412,11 +428,10 @@ rs_ls_block: ls_rs_stage port map(
     prf_data_bus =>prf_addr_bus_1,
     prf_addr_bus =>prf_data_bus_1,
 
-    mem_read_data_bus =>,
-    mem_write_addr_bus =>,
-    mem_write_en =>,
-    mem_write_data_bus =>,
-    mem_read_addr_bus =>,
+    mem_read_data_bus => mem_data_read_bus,
+    mem_addr_bus => mem_addr_bus,
+    mem_write_en => mem_write_en,
+    mem_write_data_bus => mem_data_write_bus,
 
     prf_wb_addr =>ls_rs_wb_addr,
     prf_wb_en =>ls_rs_wb_en,

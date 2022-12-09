@@ -7,7 +7,7 @@ USE ieee.numeric_std.ALL;
 use work.array_pkg.all;
 entity ls_rs_stage is
     generic(
-        rs_size: integer := 16
+        rs_size: integer := 256
         -- there are 8 architectural registers
     ); 
     port(
@@ -21,10 +21,9 @@ entity ls_rs_stage is
         prf_data_bus: in prf_data_array(0 to rs_size*2-1);-- (busy) (16 BIT DATA)  --from prf
         prf_addr_bus: out addr_array(0 to rs_size*2-1); 
 
-        mem_read_addr_bus: out std_logic_vector(15 downto 0); -- memory read addr
+        mem_addr_bus: out std_logic_vector(15 downto 0); -- memory read addr
         mem_read_data_bus: in std_logic_vector(15 downto 0); -- from data memory
         mem_write_en: out std_logic; -- to memory to enable write
-        mem_write_addr_bus: out std_logic_vector(15 downto 0); -- addr for writing
         mem_write_data_bus: out std_logic_vector(15 downto 0);
 
         prf_wb_addr: out std_logic_vector(15 downto 0); -- addr for writing
@@ -80,8 +79,8 @@ begin
             mem_write_en <= '0';
             prf_wb_en <= '0';
             temp_opcode := opcode;
-            temp_opr := opr;
-
+            temp_opr_1 := opr_1;
+            temp_opr_2 := opr_2;
             temp_dest := dest;
             temp_val := val;
             temp_val_1 := val_1;
@@ -90,22 +89,30 @@ begin
             temp_imm9 := imm9;
             temp_head_pointer := head_pointer;
             temp_tail_pointer := tail_pointer;
-
+            prf_wb_en <= '0';
             if temp_val(temp_head_pointer) = '1' then
                 -- wb initiate
                 if temp_opcode(temp_head_pointer) = "1100" and temp_val_1(temp_head_pointer) = '1' and temp_val_2(temp_head_pointer) = '1' then
                     mem_write_data_bus <= temp_opr_1(temp_head_pointer);
-                    mem_write_addr_bus <= std_logic_vector(unsigned(temp_opr_2(temp_head_pointer))+unsigned(temp_imm6(temp_head_pointer)));
+                    mem_addr_bus <= std_logic_vector(unsigned(temp_opr_2(temp_head_pointer))+unsigned(temp_imm6(temp_head_pointer)));
                     mem_write_en <= '1';
                     temp_val(temp_head_pointer) := '0';
                     temp_head_pointer := (temp_head_pointer+1) rem rs_size;
                 end if;
 
                 if temp_opcode(temp_head_pointer) = "0101" and temp_val_2(temp_head_pointer) = '1' then
-                    mem_read_addr_bus <= std_logic_vector(unsigned(temp_opr_2(temp_head_pointer))+unsigned(temp_imm6(temp_head_pointer)));
-
+                    mem_addr_bus <= std_logic_vector(unsigned(temp_opr_2(temp_head_pointer))+unsigned(temp_imm6(temp_head_pointer)));
                     prf_wb_data <= mem_read_data_bus;
-                    prf_wb_addr <= temp_opr_1(temp_head_pointer);
+                    prf_wb_addr <= temp_dest(temp_head_pointer);
+                    prf_wb_en <= '1';
+                    temp_val(temp_head_pointer) := '0';
+                    temp_head_pointer := (temp_head_pointer+1) rem rs_size;
+                end if;
+
+                if temp_opcode(temp_head_pointer) = "0011" and temp_val_2(temp_head_pointer) = '1' then
+                    prf_wb_data(8 downto 0) <= temp_imm9(temp_head_pointer);
+                    prf_wb_data(15 downto 9) <= (others=>'0');
+                    prf_wb_addr <= temp_dest(temp_head_pointer);
                     prf_wb_en <= '1';
                     temp_val(temp_head_pointer) := '0';
                     temp_head_pointer := (temp_head_pointer+1) rem rs_size;
@@ -114,53 +121,79 @@ begin
 
             if opcode_1 = "1100" then
                 temp_opcode(temp_tail_pointer) := opcode_1;
-                temp_opr_1(i) := r_a_1;
-                temp_opr_2(i) := r_b_1;
-                temp_dest(i) := r_a_1;
-                temp_val(i) := '1';
-                temp_val_1(i) := v_a_1;
-                temp_val_2(i) := v_b_1;
-                temp_imm6(i) := imm6_1;
-                temp_imm9(i) := imm9_1;
+                temp_opr_1(temp_tail_pointer) := r_a_1;
+                temp_opr_2(temp_tail_pointer) := r_b_1;
+                temp_dest(temp_tail_pointer) := r_a_1;
+                temp_val(temp_tail_pointer) := '1';
+                temp_val_1(temp_tail_pointer) := v_a_1;
+                temp_val_2(temp_tail_pointer) := v_b_1;
+                temp_imm6(temp_tail_pointer) := imm6_1;
+                temp_imm9(temp_tail_pointer) := imm9_1;
                 temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
             end if;
 
             if opcode_1 = "0101" then
                 temp_opcode(temp_tail_pointer) := opcode_1;
-                temp_opr_1(i) := "1111";
-                temp_opr_2(i) := r_b_1;
-                temp_dest(i) := r_a_1;
-                temp_val(i) := '1';
-                temp_val_1(i) := v_a_1;
-                temp_val_2(i) := v_b_1;
-                temp_imm6(i) := imm6_1;
-                temp_imm9(i) := imm9_1;
+                temp_opr_1(temp_tail_pointer) := (others=>'1');
+                temp_opr_2(temp_tail_pointer) := r_b_1;
+                temp_dest(temp_tail_pointer) := r_a_1;
+                temp_val(temp_tail_pointer) := '1';
+                temp_val_1(temp_tail_pointer) := v_a_1;
+                temp_val_2(temp_tail_pointer) := v_b_1;
+                temp_imm6(temp_tail_pointer) := imm6_1;
+                temp_imm9(temp_tail_pointer) := imm9_1;
+                temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
+            end if;
+
+            if opcode_1 = "0011" then
+                temp_opcode(temp_tail_pointer) := opcode_1;
+                temp_opr_1(temp_tail_pointer) := (others=>'1');
+                temp_opr_2(temp_tail_pointer) := (others=>'1');
+                temp_dest(temp_tail_pointer) := r_a_1;
+                temp_val(temp_tail_pointer) := '1';
+                temp_val_1(temp_tail_pointer) := v_a_1;
+                temp_val_2(temp_tail_pointer) := v_b_1;
+                temp_imm6(temp_tail_pointer) := imm6_1;
+                temp_imm9(temp_tail_pointer) := imm9_1;
                 temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
             end if;
 
             if opcode_2 = "1100" then
                 temp_opcode(temp_tail_pointer) := opcode_2;
-                temp_opr_1(i) := r_a_2;
-                temp_opr_2(i) := r_b_2;
-                temp_dest(i) := r_a_2;
-                temp_val(i) := '1';
-                temp_val_1(i) := v_a_2;
-                temp_val_2(i) := v_b_2;
-                temp_imm6(i) := imm6_2;
-                temp_imm9(i) := imm9_2;
+                temp_opr_1(temp_tail_pointer) := r_a_2;
+                temp_opr_2(temp_tail_pointer) := r_b_2;
+                temp_dest(temp_tail_pointer) := r_a_2;
+                temp_val(temp_tail_pointer) := '1';
+                temp_val_1(temp_tail_pointer) := v_a_2;
+                temp_val_2(temp_tail_pointer) := v_b_2;
+                temp_imm6(temp_tail_pointer) := imm6_2;
+                temp_imm9(temp_tail_pointer) := imm9_2;
                 temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
             end if;
 
             if opcode_2 = "0101" then
                 temp_opcode(temp_tail_pointer) := opcode_2;
-                temp_opr_1(i) := "1111";
-                temp_opr_2(i) := r_b_2;
-                temp_dest(i) := r_a_2;
-                temp_val(i) := '1';
-                temp_val_1(i) := v_a_2;
-                temp_val_2(i) := v_b_2;
-                temp_imm6(i) := imm6_2;
-                temp_imm9(i) := imm9_2;
+                temp_opr_1(temp_tail_pointer) := (others=>'1');
+                temp_opr_2(temp_tail_pointer) := r_b_2;
+                temp_dest(temp_tail_pointer) := r_a_2;
+                temp_val(temp_tail_pointer) := '1';
+                temp_val_1(temp_tail_pointer) := v_a_2;
+                temp_val_2(temp_tail_pointer) := v_b_2;
+                temp_imm6(temp_tail_pointer) := imm6_2;
+                temp_imm9(temp_tail_pointer) := imm9_2;
+                temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
+            end if;
+
+            if opcode_2 = "0011" then
+                temp_opcode(temp_tail_pointer) := opcode_2;
+                temp_opr_1(temp_tail_pointer) := (others=>'1');
+                temp_opr_2(temp_tail_pointer) := (others=>'1');
+                temp_dest(temp_tail_pointer) := r_a_2;
+                temp_val(temp_tail_pointer) := '1';
+                temp_val_1(temp_tail_pointer) := v_a_2;
+                temp_val_2(temp_tail_pointer) := v_b_2;
+                temp_imm6(temp_tail_pointer) := imm6_2;
+                temp_imm9(temp_tail_pointer) := imm9_2;
                 temp_tail_pointer := (temp_tail_pointer+1) rem rs_size;
             end if;
 
@@ -179,18 +212,18 @@ begin
                     temp_opr_2(i) := prf_data_bus(i*2+1)(15 downto 0);
                 end if;
             end loop;
-        opcode <= temp_opcode;
-        opr_1 <= temp_opr_1;
-        opr_2 <= temp_opr_2;
-        dest <= temp_dest;
-        val <= temp_val;
-        val_1 <= temp_val_1;
-        val_2 <= temp_val_2;
-        imm6 <= temp_imm6;
-        imm9 <= temp_imm9;
+            opcode <= temp_opcode;
+            opr_1 <= temp_opr_1;
+            opr_2 <= temp_opr_2;
+            dest <= temp_dest;
+            val <= temp_val;
+            val_1 <= temp_val_1;
+            val_2 <= temp_val_2;
+            imm6 <= temp_imm6;
+            imm9 <= temp_imm9;
 
-        head_pointer <= temp_head_pointer;
-        tail_pointer <= temp_tail_pointer;
+            head_pointer <= temp_head_pointer;
+            tail_pointer <= temp_tail_pointer;
 
         end if;
     end process;

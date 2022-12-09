@@ -2,15 +2,10 @@ LIBRARY ieee;
 USE ieee.std_logic_1164.ALL;
 USE ieee.numeric_std.ALL;
 
-package rob_array_pkg is
-    type bit16_vector is array(natural range <>) of std_logic_vector(15 downto 0);
-    type exec_inps is array(0 to 1) of std_logic_vector(15 downto 0);
-end package;
 
 library ieee ;
 use ieee.std_logic_1164.all ;
 USE ieee.numeric_std.ALL;
-use work.rob_array_pkg.all;
 use work.array_pkg.all;
 
 -- maintainig the context of the instructions
@@ -55,7 +50,7 @@ architecture idnar of rob is
 
     -- defining the cols of the ROB
     signal entry_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
-    signal spec : std_logic(0 to rob_size-1) := (others=>'0');
+    signal spec : std_logic_vector(0 to rob_size-1) := (others=>'0');
     -- signal value: bit16_vector(0 to rob_size - 1) := (others => (others=>'0'));
     -- signal value_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
     signal dest_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
@@ -74,7 +69,7 @@ begin
     process(clk)
         -- defining the cols of the ROB
         variable temp_entry_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
-        variable temp_spec : std_logic(0 to rob_size-1) := (others=>'0');
+        variable temp_spec : std_logic_vector(0 to rob_size-1) := (others=>'0');
         -- variable temp_value: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
         -- variable temp_value_valid: std_logic_vector(0 to rob_size-1) := (others=>'0');
         variable temp_dest_reg: bit16_vector(0 to rob_size-1) := (others => (others=>'0'));
@@ -108,9 +103,9 @@ begin
         temp_head := head; 
         temp_insert_loc := insert_loc; 
         temp_is_full := is_full; 
-        -- temp_write_en := write_en; 
-        -- temp_write_reg := write_reg; 
-        -- temp_write_data := write_data; 
+        temp_write_en := (others=>'0'); 
+        temp_write_rreg := (others => (others=>'0')); 
+        temp_write_destreg := (others => (others=>'0')); 
 
         if falling_edge(clk) then
             -- filling in values gotten from the execution unit
@@ -213,10 +208,10 @@ begin
             end if;
         end loop;
 
-        if (stall xor exec) then --handles mispred
+        if ((stall = '1' and exec = '0') or (stall = '0' and exec = '1') ) then --handles mispred
             for i in 0 to rob_size-1 loop 
                 if (temp_spec(i)='1') then
-                    temp_entry_valid := '0';
+                    temp_entry_valid(i) := '0';
                 end if;
             end loop;
         end if;
@@ -232,7 +227,7 @@ begin
         insert_loc <= temp_insert_loc; 
         is_full <= temp_is_full; 
         write_en <= temp_write_en; 
-        write_reg <= temp_write_reg; 
-        write_data <= temp_write_data; 
+        write_rreg <= temp_write_rreg; 
+        write_destreg <= temp_write_destreg; 
     end process;
 end architecture;

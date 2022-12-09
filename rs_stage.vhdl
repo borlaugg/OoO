@@ -133,58 +133,48 @@ begin
                         br1_pc <= temp_pc(i);
                     end if;
                 end if;
-
-                --ls
-                if(temp_ready(i) = '1' and ((temp_opcode(i) = "0111") or (temp_opcode(i) = "0000") or (temp_opcode(i) = "0101") or (temp_opcode(i) = "1100") or (temp_opcode(i) = "1101"))) then
-                    if temp_count(i) > age_ls1 then
-                        age_ls1 := temp_count(i);
-                        ls1_oper <= temp_opr_1(i);
-                        ls1_dest <= temp_dest(i);
-                        ls1_imm6 <= temp_imm6(i);
-                        ls1_imm9 <= temp_imm9(i);
-                        ls1_mode <= temp_opcode(i);
-                        ls1_pc <= temp_pc(i);
+            end loop;
+            if opcode_1 /= "1111" then
+                for i in 0 to rs_size-1 loop
+                    if temp_val(i) = '0' then
+                        temp_opcode(i) := opcode_1;
+                        temp_pc(i) := pc_in_1;
+                        temp_alu_op(i) := alu_op_1;
+                        temp_opr_1(i) := r_2;
+                        temp_opr_2(i) := r_3;
+                        temp_dest(i) := r_1;
+                        temp_val(i) := '1';
+                        temp_val_1(i) := v_2;
+                        temp_val_2(i) := v_3;
+                        temp_imm6(i) := imm6_1;
+                        temp_imm9(i) := imm9_1;
+                        temp_ready(i) := '0';
+                        temp_count(i) := 0;
+                        exit;    
                     end if;
-                end if;
-            end loop;
-
-            for i in 0 to rs_size-1 loop
-                if temp_val(i) = '0' then
-                    temp_opcode(i) := opcode_1;
-                    temp_pc(i) := pc_in_1;
-                    temp_alu_op(i) := alu_op_1;
-                    temp_opr_1(i) := r_2;
-                    temp_opr_2(i) := r_3;
-                    temp_dest(i) := r_1;
-                    temp_val(i) := '1';
-                    temp_val_1(i) := v_2;
-                    temp_val_2(i) := v_3;
-                    temp_imm6(i) := imm6_1;
-                    temp_imm9(i) := imm9_1;
-                    temp_ready(i) := '0';
-                    temp_count(i) := 0;
-                    exit;    
-                end if;
-            end loop; 
-
-            for i in 0 to rs_size-1 loop
-                if temp_val(i) = '0' then
-                    temp_opcode(i) := opcode_2;
-                    temp_alu_op(i) := alu_op_2;
-                    temp_pc(i) := pc_in_2;
-                    temp_opr_1(i) := r_5;
-                    temp_opr_2(i) := r_6;
-                    temp_dest(i) := r_4;
-                    temp_val(i) := '1';
-                    temp_val_1(i) := v_5;
-                    temp_val_2(i) := v_6;
-                    temp_imm6(i) := imm6_2;
-                    temp_imm9(i) := imm9_2;
-                    temp_ready(i) := '0';
-                    temp_count(i) := 0;
-                    exit;    
-                end if;
-            end loop;
+                end loop; 
+            end if;
+            
+            if opcode_2 /= "1111" then
+                for i in 0 to rs_size-1 loop
+                    if temp_val(i) = '0' then
+                        temp_opcode(i) := opcode_2;
+                        temp_alu_op(i) := alu_op_2;
+                        temp_pc(i) := pc_in_2;
+                        temp_opr_1(i) := r_5;
+                        temp_opr_2(i) := r_6;
+                        temp_dest(i) := r_4;
+                        temp_val(i) := '1';
+                        temp_val_1(i) := v_5;
+                        temp_val_2(i) := v_6;
+                        temp_imm6(i) := imm6_2;
+                        temp_imm9(i) := imm9_2;
+                        temp_ready(i) := '0';
+                        temp_count(i) := 0;
+                        exit;    
+                    end if;
+                end loop;
+            end if;
 
             for i in 0 to rs_size-1 loop
                 prf_addr_bus(i*2)(16) <= temp_val_1(i);

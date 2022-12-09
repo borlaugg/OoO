@@ -5,6 +5,7 @@ entity bpt is
     port (rst, clk, b_obs, unstall: in std_logic;
           opcode: in  std_logic_vector(3 downto 0);
           pc_in: in std_logic_vector(15 downto 0);
+          dest_reg: in std_logic_vector(2 downto 0);
           b_pred: out std_logic;
           pc_out: out std_logic_vector(15 downto 0)
         );
@@ -27,6 +28,8 @@ begin
     process(opcode, b_obs, curr_state, unstall)
     begin
         if (opcode = "1001" or opcode = "1010" or opcode = "1011") then
+            pred <= '1';
+        elsif (opcode /= "0101" or opcode /= "1101" or opcode /= "1000" or opcode /= "1011" or dest_reg = "111") then
             pred <= '1';
         elsif (opcode = "1000") then
             case curr_state is
