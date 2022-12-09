@@ -13,15 +13,16 @@ architecture behav of IF_STAGE is
 begin
 	process(clk)
 	variable pc, zero : std_logic_vector(15 downto 0) := (others => '0');
+	variable NOP : std_logic_vector(15 downto 0) := (others => '1');
 	begin
 	if (rst = '1') then
 		pc_out <= zero;
 		mem_addr_1 <= zero;
 		mem_addr_2 <= zero;
-		instr_1 <= zero;
-		instr_2 <= zero;
+		instr_1 <= NOP;
+		instr_2 <= NOP;
 		pc_out_1 <= zero;
-		pc_out_1 <=zero;
+		pc_out_2 <=zero;
 	elsif falling_edge(clk) and stall = '0' and rst = '0' and unstall = '0' then
 		instr_1 <= mem_data_in_1;
 		instr_2 <= mem_data_in_2;
