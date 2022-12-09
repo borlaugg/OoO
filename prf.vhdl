@@ -1,21 +1,10 @@
 library ieee ;
 use ieee.std_logic_1164.all ;
-USE ieee.numeric_std.ALL;
-
-package array_pkg is
-    type addr_array is array(natural range <>) of std_logic_vector(16 downto 0);
-    type prf_data_array is array(natural range <>) of std_logic_vector(16 downto 0);
-end package;
-
-
-library ieee ;
-use ieee.std_logic_1164.all ;
-USE ieee.numeric_std.ALL;
+use ieee.numeric_std.all;
 use work.array_pkg.all;
-use work.rob_array_pkg.all;
 
--- r1 = r2 + r3
--- r4 = r5 + r6 
+-- r1 = r2 op r3
+-- r4 = r5 op r6 
 
 entity rename_registers is
     generic(
@@ -63,8 +52,8 @@ architecture renaming of rename_registers is
     -- constant n : integer := 128 --size of PRF
     type rat_vector is array(0 to 7) of integer;
     signal rat: rat_vector := (0, 1, 2, 3, 4, 5, 6, 7);
-   -- variable tags : std_logic_vector() 
-   signal arch_reg_values: bit16_vector(0 to 7) := (others=>(others=>'0'));
+    -- variable tags : std_logic_vector() 
+    signal arch_reg_values: bit16_vector(0 to 7) := (others=>(others=>'0'));
 
 
     type int_array is array(0 to prf_size - 1) of integer;
@@ -118,94 +107,131 @@ begin
             temp_busy := busy;
             temp_value := value;
             temp_counter := counter;
-            rat_gr2 := temp_rat(to_integer(unsigned(gr2)));
-            rat_gr3 := temp_rat(to_integer(unsigned(gr3)));
-            temp_counter(rat_gr2) := temp_counter(rat_gr2) + 1;
-            temp_counter(rat_gr3) := temp_counter(rat_gr3) + 1;
             temp_arch_reg_values := arch_reg_values;
-            
-            rr2 <= std_logic_vector(to_unsigned(rat_gr2, 16));
-            rr3 <= std_logic_vector(to_unsigned(rat_gr3, 16));
-            
-            for i in 0 to prf_size-1 loop
-                if temp_valid(i) = '0' then
-                    temp_rat(to_integer(unsigned(gr1))) := i;
-                    temp_counter(i) := 0;
-                    temp_valid(i) := '1';
-                    rr1 <= std_logic_vector(to_unsigned(i, 16));
-                    temp_busy(i) := '1'; 
-                    exit;
-                end if;
-            end loop;
 
-            rat_gr5 := temp_rat(to_integer(unsigned(gr5)));
-            v5 <= '0';
-            rat_gr6 := temp_rat(to_integer(unsigned(gr6)));
-            v6 <= '0';
-
-            temp_counter(rat_gr5) := temp_counter(rat_gr5) + 1;
-            temp_counter(rat_gr6) := temp_counter(rat_gr6) + 1;
-            
-            rr5 <= std_logic_vector(to_unsigned(rat_gr5, 16));
-            v5<= '0';
-            rr6 <= std_logic_vector(to_unsigned(rat_gr6, 16));
-            v6 <= '0';
-            
-            for i in 0 to prf_size-1 loop
-                if temp_valid(i) = '0' then
-                    temp_rat(to_integer(unsigned(gr4))) := i;
-                    temp_counter(i) := 0;
-                    temp_valid(i) := '1';
-                    rr4 <= std_logic_vector(to_unsigned(i, 16));
-                    temp_busy(i) := '1'; 
-                    exit;
-                end if;
-            end loop;
-
-            if (temp_busy(rat_gr2) = '0') then
-                rr2 <= temp_value(rat_gr2);
+            if gr2 /= "000" then
+                rat_gr2 := temp_rat(to_integer(unsigned(gr2)));
+                rr2 <= std_logic_vector(to_unsigned(rat_gr2, 16));
+                v2 <= '0';
+                temp_counter(rat_gr2) := temp_counter(rat_gr2) + 1;
+            else
+                rr2 <= (others=>'1');
                 v2 <= '1';
             end if;
-            if (temp_busy(rat_gr3) = '0') then
-                rr3 <= temp_value(rat_gr3);
+            if gr3 /= "000" then
+                rat_gr3 := temp_rat(to_integer(unsigned(gr3)));
+                rr3 <= std_logic_vector(to_unsigned(rat_gr3, 16));
+                v3 <= '0';
+                temp_counter(rat_gr3) := temp_counter(rat_gr3) + 1;
+            else
+                rr3 <= (others=>'1');
                 v3 <= '1';
             end if;
-            if (temp_busy(rat_gr5) = '0') then
-                rr5 <= temp_value(rat_gr5);
+
+            if gr1 /= "000" then
+                for i in 0 to prf_size-1 loop
+                    if temp_valid(i) = '0' then
+                        temp_rat(to_integer(unsigned(gr1))) := i;
+                        temp_counter(i) := 1;
+                        temp_valid(i) := '1';
+                        rr1 <= std_logic_vector(to_unsigned(i, 16));
+                        temp_busy(i) := '1'; 
+                        exit;
+                    end if;
+                end loop;
+            else
+                rr1 <= (others=>'1');
+            end if;
+
+            if gr5 /= "000" then
+                rat_gr5 := temp_rat(to_integer(unsigned(gr5)));
+                rr5 <= std_logic_vector(to_unsigned(rat_gr5, 16));
+                v5 <= '0';
+                temp_counter(rat_gr5) := temp_counter(rat_gr5) + 1;
+            else
+                rr5 <= (others=>'1');
                 v5 <= '1';
             end if;
-            if (temp_busy(rat_gr6) = '0') then
-                rr6 <= temp_value(rat_gr6);
+
+            if gr6 /= "000" then
+                rat_gr6 := temp_rat(to_integer(unsigned(gr6)));
+                rr6 <= std_logic_vector(to_unsigned(rat_gr6, 16));
+                v6 <= '0';
+                temp_counter(rat_gr6) := temp_counter(rat_gr6) + 1;
+            else
+                rr6 <= (others=>'1');
                 v6 <= '1';
+            end if;
+
+            if gr4 /= "000" then
+                for i in 0 to prf_size-1 loop
+                    if temp_valid(i) = '0' then
+                        temp_rat(to_integer(unsigned(gr4))) := i;
+                        temp_counter(i) := 1;
+                        temp_valid(i) := '1';
+                        rr4 <= std_logic_vector(to_unsigned(i, 16));
+                        temp_busy(i) := '1'; 
+                        exit;
+                    end if;
+                end loop;
+            else
+                rr4 <= (others=>'1');
+            end if;
+
+            if gr2 /= "000" then
+                if (temp_busy(rat_gr2) = '0') then
+                    rr2 <= temp_value(rat_gr2);
+                    v2 <= '1';
+                end if;
+            end if;
+            
+            if gr3 /= "000" then
+                if (temp_busy(rat_gr3) = '0') then
+                    rr3 <= temp_value(rat_gr3);
+                    v3 <= '1';
+                end if;
+            end if;
+            if gr5 /= "000" then
+                if (temp_busy(rat_gr5) = '0') then
+                    rr5 <= temp_value(rat_gr5);
+                    v5 <= '1';
+                end if;
+            end if;
+
+            if gr6 /= "000" then
+                if (temp_busy(rat_gr6) = '0') then
+                    rr6 <= temp_value(rat_gr6);
+                    v6 <= '1';
+                end if;
             end if;
 
             -- writing back to register file from the ROB
             for i in 0 to rob_size-1 loop
                 if rob_write_en(i) = '1' then
-                    -- temp_value(to_integer(unsigned(write_rreg(i)))) := rob_write_data(i)(15 downto 0);
-                    -- temp_busy(to_integer(unsigned(write_reg(i)))) := '0';
-                    temp_arch_reg_values(to_integer(unsigned(rob_write_destreg(i)))) := temp_values(to_integer(unsigned(rob_write_rreg(i))));
+                    temp_arch_reg_values(to_integer(unsigned(rob_write_destreg(i)))) := temp_value(to_integer(unsigned(rob_write_rreg(i))));
                     temp_counter(to_integer(unsigned(rob_write_rreg(i)))) := temp_counter(to_integer(unsigned(rob_write_rreg(i)))) - 1;
                 end if;
             end loop;
 
+
+            if (alu1_reg_en = '1') then
+                temp_value(to_integer(unsigned(alu1_reg_addr))) := alu1_reg_data;
+                temp_busy(to_integer(unsigned(alu1_reg_addr))) := '0';
+                temp_counter(to_integer(unsigned(alu1_reg_addr))) := temp_counter(to_integer(unsigned(alu1_reg_addr))) -1;
+            end if;
+
+            if (ls_rs_wb_en = '1') then
+                temp_value(to_integer(unsigned(ls_rs_wb_addr))) := ls_rs_wb_data;
+                temp_busy(to_integer(unsigned(ls_rs_wb_addr))) := '0';
+                temp_counter(to_integer(unsigned(ls_rs_wb_addr))) := temp_counter(to_integer(unsigned(ls_rs_wb_addr)))-1;
+            end if;
+
+            -- clear invalid entires
             for i in 0 to prf_size-1 loop
                 if temp_counter(i) <= 0 then
                     temp_valid(i) := '0';
                 end if;
             end loop;
-            
-            -- @sankalp iska writeback logic likh de -- for when rob sends rename reg and dest reg to prf
-
-            if (alu1_reg_en = '1') then
-                temp_value(to_integer(unsigned(alu1_reg_addr))) := alu1_reg_data;
-                temp_busy(to_integer(unsigned(alu1_reg_addr))) := '0';
-            end if;
-
-            if (ls_rs_reg_en = '1') then
-                temp_value(to_integer(unsigned(ls_rs_reg_addr))) := ls_rs_reg_data;
-                temp_busy(to_integer(unsigned(ls_rs_reg_addr))) := '0';
-            end if;
 
             rat <= temp_rat;
             valid <= temp_valid;
