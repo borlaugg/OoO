@@ -132,7 +132,7 @@ begin
 					instruction_queue(tail) <= temp_instr;
 					tail <= (tail+1) rem 16;
 				end if;
-				if(instr_in_1(1)='0')
+				if(instr_in_1(0)='1')
 					temp_instr(15 downto 12) := "0111";
 					temp_instr(11 downto 9) := instr_in_1(11 downto 9);
 					temp_instr(8 downto 6) := "000";
