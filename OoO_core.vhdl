@@ -8,7 +8,9 @@ use work.array_pkg.all;
 entity OoO_core is
     generic (
         rs_size: integer := 16;
-        rob_size: integer := 20
+        rob_size: integer := 20;
+        ls_rs_size: integer := 256
+        -- there are 8 architectural registers
     );
     port (clk, rst : in std_logic;
     instr_1, instr_2 : in std_logic_vector(15 downto 0)
@@ -234,14 +236,14 @@ architecture superscalar of OoO_core is
      
             -- ports for adding to ROB (from the dispatch stage)
             enable1, enable2: in std_logic; -- enables for channels (each channel corresponds to one entry to be added)
-            PC1, PC4, PC_BP: in std_logic_vector(15 downto 0); -- PC of the instruction
+            PC1, PC4, PC_BP1, PC_BP2: in std_logic_vector(15 downto 0); -- PC of the instruction
             r1, r4: in std_logic_vector(15 downto 0); -- dest regs
             rr1, rr4: in std_logic_vector(15 downto 0); -- rename regs assigned to the instr
     
             -- ports for writing back to the prf
             write_en: out std_logic_vector(0 to rob_size*2-1);
-            write_reg: out bit16_vector(0 to rob_size*2-1);
-            write_data: out bit16_vector(0 to rob_size*2-1);
+            write_rreg: out bit16_vector(0 to rob_size*2-1);
+            write_destreg: out bit16_vector(0 to rob_size*2-1);
     
             -- inputs from the execution unit
             addr_bus: out addr_array(0 to rob_size-1);
@@ -263,12 +265,17 @@ architecture superscalar of OoO_core is
           data_in: in std_logic_vector(15 downto 0);
           data_out: out std_logic_vector(15 downto 0)
     );
-    end component;
+    end component; 
+    signal instr_1, instr_2: std_logic_vector(15 downto 0);
+
+
+    signal pc_out_1, pc_out_2: std_logic_vector(15 downto 0);
     signal data_mem_write_en: std_logic;
+    signal mem_write_en: std_logic;
     signal mem_data_write_bus: std_logic_vector(15 downto 0);
     signal mem_data_read_bus: std_logic_vector(15 downto 0);
     signal mem_data_addr_bus: std_logic_vector(15 downto 0);
-    signal id_pc1, id_pc2, br_value,pc_i, pc_o, pc1, pc2, pco1, pco2, do1, do2, a1, a2 : std_logic_vector(15 downto 0) := (others=>'0');
+    signal id_pc_out_2, id_pc_out_1,id_pc1, id_pc2, br_value,pc_i, pc_o, pc1, pc2, pco1, pco2, do1, do2, a1, a2 : std_logic_vector(15 downto 0) := (others=>'0');
     signal stall1, stall2, stall, unstall, b_obs1, b_obs2, rs_en1, rs_en2 : std_logic := '0';
     signal id_r1, id_r2, id_r3, id_r4, id_r5, id_r6 : std_logic_vector(3 downto 0) := (others=>'0');
     signal id_opcode1, id_opcode2 : std_logic_vector(3 downto 0) := (others=>'0');
@@ -276,6 +283,7 @@ architecture superscalar of OoO_core is
     signal id_imm_9_1, id_imm_9_2 : std_logic_vector(8 downto 0) := (others=>'0');
     signal id_alu_op1, id_alu_op2 : std_logic_vector(1 downto 0) := (others=>'0');
     signal id_pc_out2, id_pc_out1  : std_logic_vector(15 downto 0);
+
     signal rr_1,rr_2,rr_3,rr_4,rr_5,rr_6 : std_logic_vector(15 downto 0);
     signal rrv_2,rrv_3,rrv_5,rrv_6 : std_logic;
     signal rs_alu1_dest,rs_ls1_dest,rs_alu1_oper1,rs_alu1_oper2,rs_ls1_oper,rs_alu1_pc,rs_ls1_pc,rs_br1_pc,rs_br1_oper1,rs_br1_oper2 : std_logic_vector(15 downto 0);
@@ -302,6 +310,7 @@ architecture superscalar of OoO_core is
     signal disp_rob_PC1, disp_rob_PC4: std_logic_vector(15 downto 0);
     signal disp_rob_r1, disp_rob_r4: std_logic_vector(15 downto 0);
     -- signal disp_rob_r1_en, disp_rob_r4_en: std_logic_vector(3 downto 0);
+
     signal disp_rob_rr1, disp_rob_rr4: std_logic_vector(15 downto 0);
 
     signal ls_rs_wb_addr:  std_logic_vector(15 downto 0); -- addr for writing
@@ -325,8 +334,6 @@ architecture superscalar of OoO_core is
 
     signal prf_r_1, prf_r_2, prf_r_3, prf_r_4, prf_r_5, prf_r_6:  std_logic_vector(15 downto 0);  --rr stage
     signal prf_v_2, prf_v_3, prf_v_5, prf_v_6 :  std_logic;  --from rr
- 
-
 
 begin
 
@@ -391,11 +398,12 @@ dispatch_block: dispatch port map(
     -- dispatch to rob (all instructions)
     rob_enable1 =>disp_rob_enable1, rob_enable2 =>disp_rob_enable2,
     rob_r1 =>disp_rob_r1, rob_r4=>disp_rob_r4,
+
     rob_rr1 =>disp_rob_rr1, rob_rr4 =>disp_rob_rr4,
     rob_PC1 =>disp_rob_PC1, rob_PC4=>disp_rob_PC1);
         
-prf_block : rename_registers port map(gr1 => id_r1,gr4 => id_r4,
-        gr2 => id_r2,gr3 => id_r3,gr5 => id_r5,gr6 => id_r6,
+prf_block : rename_registers port map(gr1 => id_r_1(2 downto 0),gr4 => id_r_4(2 downto 0),
+        gr2 => id_r_2(2 downto 0),gr3 => id_r3,gr5 => id_r_5(2 downto 0),gr6 => id_r_6(2 downto 0),
         reset => rst, clk => clk, stall => stall,
 
         -- gr1-6 are the registers from the two lines of code above(in that order)
@@ -452,8 +460,8 @@ rs_block: rs_stage port map (
         pc_in_1 => rs_pc_in_1, pc_in_2 => rs_pc_in_2,
         opcode_1 => rs_opcode_1, opcode_2 => rs_opcode_2,
         alu_op_1=> rs_alu_op_1, alu_op_2 => rs_alu_op_2,
-        imm6_1 => rs_imm_6_1, imm6_2 => rs_imm_6_2,
-        imm9_1 => rs_imm_9_1, imm9_2 => rs_imm_9_2, 
+        imm6_1 => rs_imm6_1, imm6_2 => rs_imm6_2,
+        imm9_1 => rs_imm9_1, imm9_2 => rs_imm9_2, 
         r_1 => rs_r_1, r_2=> rs_r_2, r_3 => rs_r_3, r_4 => rs_r_4, r_5 => rs_r_5, r_6 => rs_r_6,
         v_2 => rs_v_2, v_3 => rs_v_3, v_5 => rs_v_5, v_6 => rs_v_6,
         prf_data_bus=> prf_data_bus,
@@ -476,7 +484,7 @@ rs_block: rs_stage port map (
 );
 
 exec_block : exec_unit port map(
-    clk => clk, stall => stall, reset => reset, 
+    clk => clk, stall => stall, reset => rst, 
     alu1_dest => rs_alu1_dest, ls1_dest => rs_ls1_dest,
     alu1_oper1 => rs_alu1_oper1, alu1_oper2 => rs_alu1_oper2, ls1_oper => rs_ls1_oper,
     alu1_imm6 => rs_alu1_imm6,
