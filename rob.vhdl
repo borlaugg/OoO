@@ -15,7 +15,7 @@ use work.array_pkg.all;
 
 entity rob is
     generic(
-        rob_size: integer := 20
+        rob_size: integer := 256
         -- there are 8 architectural registers
     ); 
     port(
